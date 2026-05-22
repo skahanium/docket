@@ -1,0 +1,54 @@
+.container { padding: 32px 36px; height: 100%; overflow-y: auto; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.title { font-size: 24px; font-weight: 700; color: var(--text-main); letter-spacing: -0.02em; }
+.dateHint { font-size: 16px; color: var(--text-sub); font-weight: 400; margin-left: 10px; }
+.gaugeRow { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.gauge { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.gaugeFill { height: 100%; border-radius: 3px; transition: width 500ms ease; }
+.gaugeLabel { font-size: 12px; color: var(--text-sub); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gaugeDivider { width: 1px; height: 20px; background: var(--border); border-radius: 1px; }
+.sortSelect {
+  height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-family: inherit; font-size: 14px; color: var(--text-sub); background: var(--bg-elevated);
+  cursor: pointer; outline: none; transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.sortSelect:hover { border-color: var(--text-label); }
+.sortSelect:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
+.filterRow { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.filterSelect {
+  height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-family: inherit; font-size: 14px; color: var(--text-sub); background: var(--bg-elevated);
+  cursor: pointer; outline: none; transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.filterSelect:hover { border-color: var(--text-label); }
+.filterSelect:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
+.clearFilter { height: 36px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: transparent; font-family: inherit; font-size: 14px; color: var(--text-sub); cursor: pointer; transition: all 150ms ease; }
+.clearFilter:hover { color: var(--text-main); background: var(--bg-hover); border-color: var(--text-label); }
+.list { display: flex; flex-direction: column; gap: 2px; }
+.listVirtual {
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: min(70vh, 720px);
+  overflow-y: auto;
+}
+.taskRow {
+  content-visibility: auto;
+  contain-intrinsic-size: 68px;
+}
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 72px 0; gap: 12px; }
+.emptyIcon { width: 56px; height: 56px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; color: var(--accent); }
+.emptyTitle { font-size: 17px; font-weight: 500; color: var(--text-main); }
+.emptyHint { font-size: 15px; color: var(--text-label); }
+.error { display: flex; flex-direction: column; align-items: center; padding: 56px 0; gap: 12px; }
+.errorText { font-size: 17px; color: var(--text-sub); }
+.retryBtn { font-size: 15px; color: var(--accent); background: none; border: none; cursor: pointer; font-weight: 500; }
+.retryBtn:hover { text-decoration: underline; }
+.skeletonCard { height: 72px; padding: 16px 18px; display: flex; align-items: flex-start; gap: 14px; border-radius: var(--radius-md); }
+.skeletonCircle { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; }
+.skeletonLines { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.skeletonLine { height: 14px; border-radius: var(--radius-sm); }
+.skeletonLine:first-child { width: 70%; }
+.skeletonLine:last-child { width: 40%; }
+
+.taskCard {
+  animation: slide-up 200ms ease both;
+}

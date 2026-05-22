@@ -1,0 +1,11 @@
+.overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; animation: fade-in 100ms ease both; }
+.dialog { background: var(--bg-page); border: 1px solid var(--border); border-radius: var(--radius-2xl); padding: 28px; min-width: 360px; max-width: 440px; box-shadow: var(--shadow-2xl); animation: pop-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.title { font-size: 18px; font-weight: 600; color: var(--text-main); margin-bottom: 10px; }
+.message { font-size: 15px; color: var(--text-sub); line-height: 1.6; margin-bottom: 24px; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; }
+.cancelBtn { height: 38px; padding: 0 18px; border: 1px solid var(--border); border-radius: var(--radius-md); background: transparent; font-family: inherit; font-size: 15px; color: var(--text-sub); cursor: pointer; transition: all 150ms ease; }
+.cancelBtn:hover { background: var(--bg-hover); color: var(--text-main); }
+.confirmBtn { height: 38px; padding: 0 18px; border: none; border-radius: var(--radius-md); background: var(--accent); font-family: inherit; font-size: 15px; font-weight: 500; color: #fff; cursor: pointer; transition: all 150ms ease; }
+.confirmBtn:hover { background: var(--accent-hover); }
+.danger { background: var(--danger); }
+.danger:hover { opacity: 0.9; }

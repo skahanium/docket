@@ -1,0 +1,24 @@
+.wrap { }
+.sectionLabel { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-label); margin-bottom: 10px; }
+.list { display: flex; flex-direction: column; gap: 4px; }
+.item { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: grab; }
+.itemDragging { opacity: 0.4; }
+.itemDragOver { border-top: 2px solid var(--accent); padding-top: 2px; }
+.dragHandle { color: var(--text-label); font-size: 14px; cursor: grab; opacity: 0; transition: opacity 100ms ease; user-select: none; flex-shrink: 0; width: 18px; text-align: center; }
+.item:hover .dragHandle { opacity: 0.6; }
+.check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; transition: border-color 150ms ease, background-color 150ms ease; outline: none; }
+.check:hover { border-color: var(--accent); }
+.checkDone { border-color: var(--success); background: var(--success); }
+.checkIcon { width: 10px; height: 10px; color: #fff; }
+.itemTitle { font-size: 15px; color: var(--text-main); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 200ms ease, text-decoration 200ms ease; }
+.itemTitleDone { color: var(--text-label); text-decoration: line-through; }
+.removeBtn { border: none; background: none; font-size: 14px; color: var(--text-label); cursor: pointer; padding: 3px 5px; border-radius: var(--radius-sm); opacity: 0; transition: opacity 100ms ease, color 100ms ease, background-color 100ms ease; }
+.item:hover .removeBtn { opacity: 1; }
+.removeBtn:hover { color: var(--danger); background: var(--danger-light); }
+.addRow { display: flex; gap: 10px; margin-top: 12px; }
+.addInput { flex: 1; height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; color: var(--text-main); background: var(--bg-elevated); outline: none; transition: border-color 150ms ease; }
+.addInput::placeholder { color: var(--text-label); }
+.addInput:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
+.addBtn { height: 36px; padding: 0 14px; border: none; border-radius: var(--radius-md); font-family: inherit; font-size: 14px; font-weight: 500; color: var(--accent); background: var(--accent-light); cursor: pointer; transition: background-color 100ms ease; }
+.addBtn:hover { background: var(--accent-subtle); }
+.addBtn:disabled { opacity: 0.3; cursor: not-allowed; }

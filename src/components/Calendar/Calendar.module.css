@@ -1,0 +1,18 @@
+.container { padding: 40px; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.navGroup { display: flex; align-items: center; gap: 6px; }
+.navBtn { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: none; border-radius: 50%; background: transparent; color: var(--text-sub); cursor: pointer; transition: background-color 150ms ease, color 150ms ease; }
+.navBtn:hover { background: var(--bg-hover); color: var(--text-main); }
+.monthLabel { font-size: 22px; font-weight: 700; color: var(--text-main); min-width: 180px; text-align: center; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.todayBtn { height: 34px; padding: 0 16px; border: 1px solid var(--border); border-radius: 99px; background: transparent; color: var(--text-sub); font-family: inherit; font-size: 14px; cursor: pointer; margin-left: 12px; transition: all 150ms ease; }
+.todayBtn:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent); }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 6px; }
+.weekday { text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-label); padding: 10px 0; }
+.grid { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-page); }
+.placeholder { height: 90px; background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); border-right: 1px solid var(--border-subtle); }
+
+.skeletonGrid { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-page); }
+.skeletonCell { height: 90px; background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); border-right: 1px solid var(--border-subtle); display: flex; align-items: flex-start; justify-content: center; padding-top: 10px; }
+.skeletonDay { width: 24px; height: 14px; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--border) 25%, var(--bg-hover) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.6s infinite; }

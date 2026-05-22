@@ -1,0 +1,79 @@
+.container { padding: 28px 36px; height: 100%; overflow-y: auto; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.dateRow { display: flex; align-items: center; gap: 8px; }
+.navBtn { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: none; border-radius: 50%; background: transparent; color: var(--text-sub); cursor: pointer; transition: all 150ms ease; }
+.navBtn:hover { background: var(--bg-hover); color: var(--text-main); }
+.dateLabel { font-size: 22px; font-weight: 700; color: var(--text-main); letter-spacing: -0.02em; min-width: 130px; text-align: center; }
+.weekday { font-size: 15px; color: var(--text-sub); font-weight: 400; margin-left: 4px; }
+.todayBtn { height: 34px; padding: 0 14px; border: 1px solid var(--border); border-radius: 99px; background: transparent; color: var(--text-sub); font-family: inherit; font-size: 14px; cursor: pointer; transition: all 150ms ease; }
+.todayBtn:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent); }
+.actions { display: flex; gap: 8px; align-items: center; }
+.autoBtn { height: 34px; padding: 0 18px; border: none; border-radius: 99px; font-family: inherit; font-size: 14px; font-weight: 500; color: var(--text-on-accent); background: var(--accent); cursor: pointer; transition: all 150ms ease; box-shadow: var(--shadow-xs); }
+.autoBtn:hover { background: var(--accent-hover); box-shadow: var(--shadow-sm); }
+.autoBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.clearBtn { height: 34px; padding: 0 14px; border: 1px solid var(--border); border-radius: 99px; background: transparent; color: var(--text-sub); font-family: inherit; font-size: 14px; cursor: pointer; transition: all 150ms ease; }
+.clearBtn:hover { color: var(--danger); border-color: var(--danger); }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.gaugeRow { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.gauge { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.gaugeFill { height: 100%; border-radius: 3px; transition: width 500ms ease; }
+.gaugeLabel { font-size: 13px; color: var(--text-sub); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.block { margin-bottom: 20px; }
+.blockHeader { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.blockLabel { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-label); }
+.blockTime { font-size: 13px; color: var(--text-sub); font-variant-numeric: tabular-nums; }
+.blockDivider { flex: 1; height: 1px; background: var(--border-subtle); }
+
+.timeline { position: relative; min-height: 40px; }
+.timelineEmpty { padding: 24px 0; text-align: center; font-size: 14px; color: var(--text-label); }
+
+.timelineCard {
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  animation: slide-up 200ms ease both;
+}
+.timelineCard:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); }
+.timelineCardCompleted { opacity: 0.5; }
+
+.timeBadge { font-size: 12px; color: var(--text-label); font-variant-numeric: tabular-nums; font-family: var(--font-mono); min-width: 42px; flex-shrink: 0; }
+.cardBody { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.cardTitle { font-size: 14px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cardTitleDone { color: var(--text-label); text-decoration: line-through; }
+.cardDur { font-size: 12px; color: var(--text-label); white-space: nowrap; }
+.priority { font-size: 11px; letter-spacing: 1px; flex-shrink: 0; }
+.priorityMed { color: var(--warning); }
+.priorityHigh { color: var(--danger); }
+.colorDot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.removeCardBtn { border: none; background: none; color: var(--text-label); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 3px; opacity: 0; transition: all 100ms ease; }
+.timelineCard:hover .removeCardBtn { opacity: 1; }
+.removeCardBtn:hover { color: var(--danger); background: var(--danger-light); }
+
+.unscheduledSection { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 20px; }
+.unscheduledHeader { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.unscheduledTitle { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-label); }
+.unscheduledCount { font-size: 12px; color: var(--text-sub); }
+
+.unscheduledList { display: flex; flex-direction: column; gap: 4px; }
+.unscheduledCard {
+  border: 1px dashed var(--border); border-radius: var(--radius-md); padding: 10px 14px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer; transition: all 150ms ease;
+  animation: slide-up 200ms ease both;
+}
+.unscheduledCard:hover { border-color: var(--accent); border-style: solid; background: var(--accent-subtle); }
+.unscheduledTitle { font-size: 14px; color: var(--text-main); flex: 1; }
+.unscheduledDur { font-size: 12px; color: var(--text-label); }
+
+@media (max-width: 700px) {
+  .container { padding: 20px; }
+  .dateLabel { font-size: 18px; }
+}

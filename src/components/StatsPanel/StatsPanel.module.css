@@ -1,0 +1,22 @@
+.container { padding: 40px; }
+.title { font-size: 24px; font-weight: 700; color: var(--text-main); margin-bottom: 28px; letter-spacing: -0.02em; }
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+@media (max-width: 800px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+.card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-xs); transition: box-shadow 200ms ease, border-color 200ms ease, transform 150ms ease; }
+.cardClickable { cursor: pointer; }
+.cardClickable:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.cardLabel { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-label); margin-bottom: 10px; }
+.cardValue { font-size: 36px; font-weight: 700; color: var(--text-main); line-height: 1.1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.cardValueDanger { color: var(--danger); }
+.cardValueAccent { color: var(--accent); }
+.chart { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-xs); }
+.chartLabel { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-label); margin-bottom: 18px; }
+.bars { display: flex; align-items: flex-end; gap: 14px; height: 140px; }
+.barCol { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.barVal { font-size: 14px; color: var(--text-sub); font-variant-numeric: tabular-nums; }
+.bar { width: 100%; border-radius: 6px 6px 0 0; background: var(--accent); transition: height 500ms ease; min-height: 2px; }
+.barLabel { font-size: 12px; color: var(--text-label); font-variant-numeric: tabular-nums; }
+.skeletonCard { height: 100px; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; display: flex; flex-direction: column; gap: 10px; }
+.skeletonLine { height: 14px; border-radius: var(--radius-sm); }
+.skeletonLine:first-child { width: 50%; }
+.skeletonLine:last-child { width: 30%; }

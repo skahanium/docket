@@ -1,0 +1,19 @@
+.manager { padding: 10px 0; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.title { font-size: 15px; font-weight: 600; color: var(--text-main); }
+.addBtn { border: none; background: none; font-size: 14px; color: var(--accent); cursor: pointer; font-family: inherit; transition: opacity 150ms ease; }
+.addBtn:hover { opacity: 0.8; }
+.addRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.nameInput { height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; color: var(--text-main); background: var(--bg-elevated); outline: none; min-width: 110px; flex: 1; }
+.nameInput:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
+.colorInput { width: 32px; height: 32px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; cursor: pointer; background: var(--bg-elevated); }
+.saveBtn { height: 32px; padding: 0 12px; border: none; border-radius: var(--radius-md); font-family: inherit; font-size: 13px; font-weight: 500; color: #fff; background: var(--accent); cursor: pointer; transition: opacity 150ms ease; }
+.saveBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.cancelBtn { height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md); font-family: inherit; font-size: 13px; color: var(--text-sub); background: transparent; cursor: pointer; transition: all 150ms ease; }
+.cancelBtn:hover { background: var(--bg-hover); color: var(--text-main); }
+.item { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.itemName { font-size: 15px; color: var(--text-main); flex: 1; }
+.itemBtn { border: none; background: none; font-size: 13px; color: var(--text-label); cursor: pointer; font-family: inherit; padding: 3px 8px; border-radius: var(--radius-sm); transition: color 150ms ease, background-color 150ms ease; }
+.itemBtn:hover { color: var(--text-main); background: var(--bg-hover); }
+.itemBtnDanger:hover { color: var(--danger); background: var(--danger-light); }

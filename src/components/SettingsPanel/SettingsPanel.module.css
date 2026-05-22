@@ -1,0 +1,28 @@
+.container { padding: 32px 36px; height: 100%; overflow-y: auto; max-width: 640px; }
+.title { font-size: 24px; font-weight: 700; color: var(--text-main); margin-bottom: 24px; letter-spacing: -0.02em; }
+.section { margin-bottom: 28px; }
+.sectionTitle { font-size: 13px; font-weight: 600; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.label { font-size: 13px; color: var(--text-sub); }
+.input {
+  height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-family: inherit; font-size: 14px; color: var(--text-main); background: var(--bg-elevated);
+}
+.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
+.hint { font-size: 13px; color: var(--text-sub); line-height: 1.5; margin-bottom: 12px; }
+.pathRow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.path {
+  flex: 1; min-width: 200px; font-size: 13px; color: var(--text-main); background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px;
+  font-family: ui-monospace, monospace; word-break: break-all;
+}
+.btn {
+  height: 36px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-elevated); font-family: inherit; font-size: 14px; color: var(--text-main);
+  cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease;
+}
+.btn:hover { background: var(--bg-hover); border-color: var(--text-label); }
+.btnPrimary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btnPrimary:hover { filter: brightness(1.05); }
+.holidayCount { font-size: 14px; color: var(--text-sub); margin-bottom: 10px; }

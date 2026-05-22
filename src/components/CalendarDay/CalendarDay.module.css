@@ -1,0 +1,59 @@
+.cell {
+  height: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 100ms ease;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 8px 4px 4px;
+}
+
+.cell:hover { background: var(--bg-hover); }
+.dragOver { border: 2px dashed var(--accent) !important; background: var(--accent-light) !important; border-radius: 0; }
+.selected { background: var(--accent-subtle); }
+.selected:hover { background: var(--accent-light); }
+
+.dateWrap {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  transition: background-color 150ms ease, color 150ms ease;
+  flex-shrink: 0;
+}
+
+.dateNum {
+  font-size: 14px; font-weight: 450; color: var(--text-main); line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.today .dateWrap { background: var(--accent); }
+.today .dateNum { color: var(--text-on-accent); font-weight: 600; }
+
+.selected .dateWrap { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.selected .dateNum { color: var(--accent); font-weight: 600; }
+.selected.today .dateWrap { background: var(--accent); }
+.selected.today .dateNum { color: var(--text-on-accent); }
+
+.otherMonth .dateNum { color: var(--text-label); }
+
+.taskBar {
+  width: 100%; height: 3px; border-radius: 2px;
+  margin-top: auto; margin-bottom: 6px;
+}
+
+.taskBarPending { background: var(--accent); opacity: 0.6; }
+.taskBarDone { background: var(--success); opacity: 0.5; }
+.taskBarMix {
+  background: linear-gradient(90deg, var(--accent) var(--done-pct), var(--border) var(--done-pct));
+  opacity: 0.6;
+}
+
+.dots { display: flex; gap: 3px; margin-top: 3px; align-items: center; }
+.dot { width: 5px; height: 5px; border-radius: 50%; }
+.dotPending { background: var(--accent); }
+.dotDone { background: var(--success); opacity: 0.5; }
+.overflow { font-size: 10px; color: var(--text-label); margin-left: 1px; font-weight: 500; }
+
+.todayDot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
