@@ -68,8 +68,14 @@ export function installResources(): void {
     selectedTaskId, (id) => (id ? api.getTask(id) : null),
   )
   ;[calendarData, { refetch: refetchCalendar }] = createResource(
-    () => ({ year: calendarYear(), month: calendarMonth() }),
-    ({ year, month }) => api.getCalendarMonth(year, month),
+    () => {
+      const view = activeView()
+      if (view !== 'calendar' && view !== 'schedule') return undefined
+      return { year: calendarYear(), month: calendarMonth() }
+    },
+    (params) =>
+      params ? api.getCalendarMonth(params.year, params.month) : Promise.resolve([]),
+    { initialValue: [] },
   )
   ;[statsPanel, { refetch: refetchStats }] = createResource(
     () => activeView() === 'stats',
@@ -77,5 +83,4 @@ export function installResources(): void {
   )
 
   createEffect(() => { if (activeView() === 'stats') refetchStats() })
-  createEffect(() => { void calendarYear(); void calendarMonth(); refetchCalendar() })
 }

@@ -23,18 +23,93 @@
 }
 .textarea::placeholder { color: var(--text-label); }
 .textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring-focus); }
-.row { display: flex; gap: 10px; margin-bottom: 16px; }
-.col2 { flex: 1; }
+.metaRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+@media (max-width: 520px) {
+  .metaRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.recurRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 10px;
+  align-items: center;
+}
+@media (max-width: 420px) {
+  .recurRow { grid-template-columns: 1fr; }
+}
 .select {
-  height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
-  font-family: inherit; font-size: 14px; color: var(--text-main); background: var(--bg-elevated);
-  cursor: pointer; outline: none; width: 100%; transition: border-color 150ms ease, background-color 150ms ease;
+  height: 40px;
+  min-width: 0;
+  width: 100%;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-main);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 150ms ease, background-color 150ms ease;
 }
 .select:hover { border-color: var(--text-label); }
 .select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
-.dateInput { flex: 1; height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; color: var(--text-main); background: var(--bg-elevated); outline: none; font-variant-numeric: tabular-nums; transition: border-color 150ms ease; }
+.dateInput {
+  min-width: 0;
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-main);
+  background: var(--bg-elevated);
+  outline: none;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 150ms ease;
+}
 .dateInput:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
-.tagsWrap { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.tagsWrap { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; min-height: 0; }
+.tagsEmpty { font-size: 13px; color: var(--text-label); margin: 0 0 18px; }
+.intervalField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-sub);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.intervalInput {
+  width: 48px;
+  height: 34px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  text-align: center;
+  font-family: inherit;
+  color: var(--text-main);
+  background: var(--bg-elevated);
+}
+.endDateInput,
+.endCountInput {
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-main);
+  background: var(--bg-elevated);
+}
+.endCountInput { width: 56px; text-align: center; }
+.endCountSuffix { font-size: 13px; color: var(--text-sub); }
 .tagChip {
   display: flex; align-items: center; gap: 4px; padding: 6px 14px; border-radius: 99px;
   font-size: 13px; font-weight: 500; border: 1px solid var(--border); cursor: pointer;
@@ -49,8 +124,16 @@
   color: var(--text-label); margin-bottom: 8px;
 }
 .recurToggle {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
-  background: var(--bg-surface); border-radius: 99px; padding: 3px; border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 16px;
+  background: var(--bg-surface);
+  border-radius: 99px;
+  padding: 3px;
+  border: 1px solid var(--border);
 }
 .recurToggleBtn {
   height: 34px; padding: 0 18px; border: none; border-radius: 99px;
@@ -68,7 +151,13 @@
 }
 .weekdayBtn:hover { border-color: var(--accent); color: var(--accent); }
 .weekdayBtnActive { background: var(--accent); border-color: var(--accent); color: #fff; }
-.endRow { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.endRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  margin-bottom: 8px;
+}
 .radioLabel { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-sub); cursor: pointer; }
 .radioLabel input { margin: 0; }
 .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }

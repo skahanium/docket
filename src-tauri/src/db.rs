@@ -26,6 +26,14 @@ pub mod settings_keys {
     pub const NOTIFY_DAILY_TIME: &str = "notify_daily_time";
     pub const NOTIFY_OVERDUE: &str = "notify_overdue";
     pub const NOTIFY_OVERDUE_INTERVAL_MINUTES: &str = "notify_overdue_interval_minutes";
+    pub const PANEL_X: &str = "panel_x";
+    pub const PANEL_Y: &str = "panel_y";
+    pub const PANEL_WIDTH: &str = "panel_width";
+    pub const PANEL_HEIGHT: &str = "panel_height";
+    pub const PANEL_VISIBLE: &str = "panel_visible";
+    pub const PANEL_OPAQUE: &str = "panel_opaque";
+    pub const PANEL_ALWAYS_ON_TOP: &str = "panel_always_on_top";
+    pub const PANEL_REFRESH_SECONDS: &str = "panel_refresh_seconds";
 }
 
 pub mod task_status {
@@ -228,6 +236,17 @@ pub fn seed_defaults(conn: &Connection) -> SqlResult<()> {
         conn.execute(
             "INSERT INTO settings (key, value) VALUES ('default_focus_minutes', '45')",
             [],
+        )?;
+    }
+
+    for (key, value) in [
+        (settings_keys::PANEL_OPAQUE, "0"),
+        (settings_keys::PANEL_ALWAYS_ON_TOP, "0"),
+        (settings_keys::PANEL_REFRESH_SECONDS, "120"),
+    ] {
+        conn.execute(
+            "INSERT OR IGNORE INTO settings (key, value) VALUES (?1, ?2)",
+            [key, value],
         )?;
     }
 

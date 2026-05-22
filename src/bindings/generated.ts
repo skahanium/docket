@@ -47,10 +47,23 @@ export type DailyReview = {
 	plan_accuracy: number,
 };
 
+export type TaskPanelRow = {
+	id: number,
+	title: string,
+	due_date: string | null,
+	priority: number,
+};
+
 export type DesktopPanelSnapshot = {
-	today: TaskSummary[],
-	overdue: TaskSummary[],
+	today: TaskPanelRow[],
+	overdue: TaskPanelRow[],
 	generated_at: string,
+};
+
+export type PanelSettings = {
+	panel_opaque: boolean,
+	panel_always_on_top: boolean,
+	panel_refresh_seconds: number,
 };
 
 export type FocusHeatmapEntry = {

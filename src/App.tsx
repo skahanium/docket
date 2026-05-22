@@ -1,4 +1,4 @@
-import { type Component, Switch, Match, Show, createSignal, onMount, onCleanup, For } from 'solid-js'
+import { type Component, Switch, Match, Show, createSignal, onMount, onCleanup, For, lazy, Suspense } from 'solid-js'
 import { listen } from '@tauri-apps/api/event'
 import {
   activeView, setActiveView,
@@ -20,11 +20,16 @@ import Sidebar from './components/Sidebar/Sidebar'
 import TaskList from './components/TaskList/TaskList'
 import CreateTaskDialog from './components/CreateTaskDialog/CreateTaskDialog'
 import TaskDetail from './components/TaskDetail/TaskDetail'
-import Calendar from './components/Calendar/Calendar'
-import Schedule from './components/Schedule/Schedule'
 import DailyReviewDialog from './components/DailyReview/DailyReviewDialog'
-import StatsPanel from './components/StatsPanel/StatsPanel'
-import SettingsPanel from './components/SettingsPanel/SettingsPanel'
+
+const Calendar = lazy(() => import('./components/Calendar/Calendar'))
+const Schedule = lazy(() => import('./components/Schedule/Schedule'))
+const StatsPanel = lazy(() => import('./components/StatsPanel/StatsPanel'))
+const SettingsPanel = lazy(() => import('./components/SettingsPanel/SettingsPanel'))
+
+const ViewLoading: Component = () => (
+  <div style={{ padding: '24px', color: 'var(--text-sub)', 'font-size': '14px' }}>加载视图…</div>
+)
 
 const App: Component = () => {
   const [dialogOpen, setDialogOpen] = createSignal(false)
@@ -65,7 +70,7 @@ const App: Component = () => {
   }
 
   const viewTitle = () => {
-    switch (activeView()) {
+    switch (activeView?.() ?? 'all') {
       case 'today': return '今日任务'
       case 'schedule': return '日程'
       case 'archive': return '归档'
@@ -76,16 +81,16 @@ const App: Component = () => {
   return (
     <div style={{ display: 'flex', 'flex-direction': 'column', height: '100%' }}>
       <TopBar
-        searchValue={searchQuery() ?? ''}
+        searchValue={searchQuery?.() ?? ''}
         onSearchInput={setSearchQuery}
         onCreateClick={() => openDialog()}
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Sidebar
-          activeView={activeView()}
-          categories={categories() ?? []}
-          tags={tags() ?? []}
+          activeView={activeView?.() ?? 'all'}
+          categories={categories?.() ?? []}
+          tags={tags?.() ?? []}
           activeCategoryId={activeCategoryId()}
           activeTagId={activeTagId()}
           onViewChange={(v) => { setActiveView(v); deselectTask(); clearFilters() }}
@@ -95,28 +100,36 @@ const App: Component = () => {
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
           <Switch>
-            <Match when={activeView() === 'schedule'}>
-              <Schedule />
+            <Match when={(activeView?.() ?? 'all') === 'schedule'}>
+              <Suspense fallback={<ViewLoading />}>
+                <Schedule />
+              </Suspense>
             </Match>
-            <Match when={activeView() === 'calendar'}>
-              <Calendar onDoubleClickDate={(date) => openDialog(date)} />
+            <Match when={(activeView?.() ?? 'all') === 'calendar'}>
+              <Suspense fallback={<ViewLoading />}>
+                <Calendar onDoubleClickDate={(date) => openDialog(date)} />
+              </Suspense>
             </Match>
-            <Match when={activeView() === 'stats'}>
-              <StatsPanel />
+            <Match when={(activeView?.() ?? 'all') === 'stats'}>
+              <Suspense fallback={<ViewLoading />}>
+                <StatsPanel />
+              </Suspense>
             </Match>
-            <Match when={activeView() === 'settings'}>
-              <SettingsPanel />
+            <Match when={(activeView?.() ?? 'all') === 'settings'}>
+              <Suspense fallback={<ViewLoading />}>
+                <SettingsPanel />
+              </Suspense>
             </Match>
             <Match when={true}>
               <TaskList
                 title={viewTitle()}
-                tasks={tasks() ?? []}
-                loading={tasks.loading}
-                error={tasks.error ? String(tasks.error) : null}
-                categories={categories() ?? []}
-                tags={tags() ?? []}
-                showFilters={activeView() !== 'archive'}
-                isArchive={activeView() === 'archive'}
+                tasks={tasks ? (tasks() ?? []) : []}
+                loading={tasks?.loading ?? false}
+                error={tasks?.error ? String(tasks.error) : null}
+                categories={categories?.() ?? []}
+                tags={tags?.() ?? []}
+                showFilters={(activeView?.() ?? 'all') !== 'archive'}
+                isArchive={(activeView?.() ?? 'all') === 'archive'}
                 onCategoryChange={(id) => setActiveCategoryId(id)}
                 onTagChange={(id) => setActiveTagId(id)}
                 onClearFilters={clearFilters}
@@ -137,7 +150,7 @@ const App: Component = () => {
       <DailyReviewDialog open={reviewOpen()} onClose={() => setReviewOpen(false)} />
 
       <div role="status" aria-live="polite" style={{ position: 'fixed', top: '16px', right: '16px', 'z-index': '999', display: 'flex', 'flex-direction': 'column', gap: '10px' }}>
-        <For each={toasts()}>
+        <For each={toasts?.() ?? []}>
           {(t) => {
             const borderColor = t.type === 'error' ? 'var(--danger)' : t.type === 'success' ? 'var(--success)' : 'var(--accent)'
             return <div style={{

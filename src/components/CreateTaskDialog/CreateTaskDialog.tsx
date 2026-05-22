@@ -1,4 +1,4 @@
-import { type Component, createSignal, For } from 'solid-js'
+import { type Component, createSignal, For, Show } from 'solid-js'
 import styles from './CreateTaskDialog.module.css'
 import { createTask as apiCreateTask, addTagToTask, invalidateAfterTaskMutation, pushToast, categories, tags } from '../../stores'
 
@@ -84,11 +84,11 @@ const CreateTaskDialog: Component<Props> = (props) => {
           placeholder="任务标题" autofocus />
         <textarea class={styles.textarea} value={description()} onInput={(e) => setDescription(e.currentTarget.value)} placeholder="描述（可选）" />
 
-        <div class={styles.row}>
-          <select class={styles.select} value={priority()} onChange={(e) => setPriority(Number(e.currentTarget.value))}>
-            <option value={0}>○ 低优先级</option>
-            <option value={1}>◉ 中优先级</option>
-            <option value={2}>◉◉ 高优先级</option>
+        <div class={styles.metaRow}>
+          <select class={styles.select} value={priority()} onChange={(e) => setPriority(Number(e.currentTarget.value))} title="优先级">
+            <option value={0}>○ 低</option>
+            <option value={1}>◉ 中</option>
+            <option value={2}>◉◉ 高</option>
           </select>
           <input type="date" class={styles.dateInput} value={dueDate()} onInput={(e) => setDueDate(e.currentTarget.value)} />
           <select class={styles.select} value={categoryId() ?? ''} onChange={(e) => setCategoryId(e.currentTarget.value ? Number(e.currentTarget.value) : null)}>
@@ -109,13 +109,18 @@ const CreateTaskDialog: Component<Props> = (props) => {
         </div>
 
         <p class={styles.sectionLabel}>标签</p>
-        <div class={styles.tagsWrap}>
-          <For each={tags() ?? []}>{(t) => (
-            <button class={`${styles.tagChip} ${selectedTags().includes(t.id) ? styles.tagChipActive : ''}`} onClick={() => toggleTag(t.id)}>
-              {t.name}
-            </button>
-          )}</For>
-        </div>
+        <Show
+          when={(tags() ?? []).length > 0}
+          fallback={<p class={styles.tagsEmpty}>暂无标签，可在设置中创建</p>}
+        >
+          <div class={styles.tagsWrap}>
+            <For each={tags() ?? []}>{(t) => (
+              <button class={`${styles.tagChip} ${selectedTags().includes(t.id) ? styles.tagChipActive : ''}`} onClick={() => toggleTag(t.id)}>
+                {t.name}
+              </button>
+            )}</For>
+          </div>
+        </Show>
 
         <p class={styles.sectionLabel}>重复</p>
         <div class={styles.recurToggle}>
@@ -125,15 +130,21 @@ const CreateTaskDialog: Component<Props> = (props) => {
 
         {recurring() && (
           <div class={styles.recurPanel}>
-            <div class={styles.row}>
-              <select class={styles.select} value={freq()} onChange={(e) => setFreq(e.currentTarget.value as any)}>
+            <div class={styles.recurRow}>
+              <select class={styles.select} value={freq()} onChange={(e) => setFreq(e.currentTarget.value as 'daily' | 'weekly' | 'monthly')}>
                 <option value="daily">每日</option>
                 <option value="weekly">每周</option>
                 <option value="monthly">每月</option>
               </select>
-              <div style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text-sub);flex:1">
+              <div class={styles.intervalField}>
                 <span>每隔</span>
-                <input type="number" min={1} value={interval()} onInput={(e) => setInterval(Math.max(1, Number(e.currentTarget.value)))} style="width:48px;height:34px;padding:0 6px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;text-align:center;" />
+                <input
+                  type="number"
+                  min={1}
+                  class={styles.intervalInput}
+                  value={interval()}
+                  onInput={(e) => setInterval(Math.max(1, Number(e.currentTarget.value)))}
+                />
                 <span>{freq() === 'daily' ? '天' : freq() === 'weekly' ? '周' : '个月'}</span>
               </div>
             </div>
@@ -153,12 +164,18 @@ const CreateTaskDialog: Component<Props> = (props) => {
               <label class={styles.radioLabel}><input type="radio" name="end" checked={endType() === 'date'} onChange={() => setEndType('date')} />到日期</label>
               <label class={styles.radioLabel}><input type="radio" name="end" checked={endType() === 'count'} onChange={() => setEndType('count')} />重复</label>
               {endType() === 'date' && (
-                <input type="date" value={endDate()} onInput={(e) => setEndDate(e.currentTarget.value)} style="height:30px;padding:0 6px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;" />
+                <input type="date" class={styles.endDateInput} value={endDate()} onInput={(e) => setEndDate(e.currentTarget.value)} />
               )}
               {endType() === 'count' && (
-                <input type="number" min={1} value={endCount()} onInput={(e) => setEndCount(Math.max(1, Number(e.currentTarget.value)))} style="width:56px;height:30px;padding:0 6px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;text-align:center;" />
+                <input
+                  type="number"
+                  min={1}
+                  class={styles.endCountInput}
+                  value={endCount()}
+                  onInput={(e) => setEndCount(Math.max(1, Number(e.currentTarget.value)))}
+                />
               )}
-              {endType() === 'count' && <span style="font-size:13px;color:var(--text-sub)">次</span>}
+              {endType() === 'count' && <span class={styles.endCountSuffix}>次</span>}
             </div>
           </div>
         )}

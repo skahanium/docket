@@ -13,6 +13,11 @@ import {
   pushToast,
 } from '../../stores'
 import type { NotificationSettings } from '../../bindings/notifications'
+import {
+  getPanelSettings,
+  updatePanelSettings,
+  type PanelSettings,
+} from '../../bindings/panel'
 
 const SettingsPanel: Component = () => {
   const [loaded] = createResource(getSettings)
@@ -24,6 +29,8 @@ const SettingsPanel: Component = () => {
   )
   const [notifyLoaded] = createResource(getNotificationSettings)
   const [notifyDraft, setNotifyDraft] = createSignal<NotificationSettings | null>(null)
+  const [panelLoaded] = createResource(getPanelSettings)
+  const [panelDraft, setPanelDraft] = createSignal<PanelSettings | null>(null)
 
   createEffect(() => {
     const n = notifyLoaded()
@@ -33,6 +40,11 @@ const SettingsPanel: Component = () => {
   createEffect(() => {
     const s = loaded()
     if (s) setDraft({ ...s })
+  })
+
+  createEffect(() => {
+    const p = panelLoaded()
+    if (p) setPanelDraft({ ...p })
   })
 
   const save = async () => {
@@ -121,6 +133,71 @@ const SettingsPanel: Component = () => {
             onClick={() => void save()}
           >
             {saving() ? '保存中…' : '保存'}
+          </button>
+        </Show>
+      </section>
+
+      <section class={styles.section}>
+        <p class={styles.sectionTitle}>桌面任务面板</p>
+        <Show when={panelDraft()} fallback={<p class={styles.hint}>加载中…</p>}>
+          <label class={styles.field} style={{ 'flex-direction': 'row', 'align-items': 'center', gap: '8px' }}>
+            <input
+              type="checkbox"
+              checked={panelDraft()!.panel_always_on_top}
+              onChange={(e) =>
+                setPanelDraft((p) => (p ? { ...p, panel_always_on_top: e.currentTarget.checked } : p))
+              }
+            />
+            <span class={styles.label}>窗口置顶（关闭后可被其它窗口遮挡）</span>
+          </label>
+          <label class={styles.field} style={{ 'flex-direction': 'row', 'align-items': 'center', gap: '8px' }}>
+            <input
+              type="checkbox"
+              checked={panelDraft()!.panel_opaque}
+              onChange={(e) =>
+                setPanelDraft((p) => (p ? { ...p, panel_opaque: e.currentTarget.checked } : p))
+              }
+            />
+            <span class={styles.label}>不透明背景（关闭毛玻璃，适合老机器）</span>
+          </label>
+          <label class={styles.field}>
+            <span class={styles.label}>可见时刷新间隔（秒，30–600）</span>
+            <input
+              class={styles.input}
+              type="number"
+              min={30}
+              max={600}
+              value={panelDraft()!.panel_refresh_seconds}
+              onInput={(e) =>
+                setPanelDraft((p) =>
+                  p
+                    ? {
+                        ...p,
+                        panel_refresh_seconds: Math.min(
+                          600,
+                          Math.max(30, Number(e.currentTarget.value) || 120),
+                        ),
+                      }
+                    : p,
+                )
+              }
+            />
+          </label>
+          <button
+            class={`${styles.btn} ${styles.btnPrimary}`}
+            style={{ 'margin-top': '8px' }}
+            onClick={async () => {
+              const p = panelDraft()
+              if (!p) return
+              try {
+                await updatePanelSettings(p)
+                pushToast('success', '面板设置已保存')
+              } catch {
+                pushToast('error', '保存失败')
+              }
+            }}
+          >
+            保存面板设置
           </button>
         </Show>
       </section>

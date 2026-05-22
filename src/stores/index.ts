@@ -1,7 +1,9 @@
-import { createRoot } from 'solid-js'
 import { installAppStore } from './install'
 
-createRoot(installAppStore)
+/** 在 Tauri 就绪后由 `index.tsx` 调用，避免模块加载时过早 invoke。 */
+export function bootstrapStores(): void {
+  installAppStore()
+}
 
 export type { ThemeMode, ResolvedTheme } from './theme'
 export { themeMode, setThemeMode, resolvedTheme } from './theme'

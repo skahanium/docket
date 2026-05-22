@@ -5,7 +5,7 @@ use chrono::Utc;
 use rusqlite::{params_from_iter, Connection};
 use specta::Type;
 use std::collections::HashMap;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::db::task_status;
 
@@ -82,13 +82,15 @@ pub fn create_task_on_conn(conn: &Connection, input: CreateTaskInput) -> AppResu
 }
 
 #[tauri::command]
-pub fn create_task(state: State<DbState>, input: CreateTaskInput) -> Result<i64, String> {
+pub fn create_task(app: AppHandle, state: State<DbState>, input: CreateTaskInput) -> Result<i64, String> {
     let conn = lock_conn(&state)?;
-    create_task_on_conn(&conn, input).map_err(Into::into)
+    let id = create_task_on_conn(&conn, input).map_err(|e: AppError| e.to_string())?;
+    crate::app_windows::emit_tasks_changed(&app);
+    Ok(id)
 }
 
 #[tauri::command]
-pub fn update_task(state: State<DbState>, id: i64, input: UpdateTaskInput) -> Result<(), String> {
+pub fn update_task(app: AppHandle, state: State<DbState>, id: i64, input: UpdateTaskInput) -> Result<(), String> {
     let conn = lock_conn(&state)?;
     let now = Utc::now().to_rfc3339();
 
@@ -140,6 +142,7 @@ pub fn update_task(state: State<DbState>, id: i64, input: UpdateTaskInput) -> Re
     conn.execute(&sql, param_refs.as_slice())
         .map_err(|e| e.to_string())?;
 
+    crate::app_windows::emit_tasks_changed(&app);
     Ok(())
 }
 
@@ -209,16 +212,19 @@ pub fn complete_task_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub fn complete_task(state: State<DbState>, id: i64) -> Result<(), String> {
+pub fn complete_task(app: AppHandle, state: State<DbState>, id: i64) -> Result<(), String> {
     let conn = lock_conn(&state)?;
-    complete_task_on_conn(&conn, id).map_err(Into::into)
+    complete_task_on_conn(&conn, id).map_err(|e: AppError| e.to_string())?;
+    crate::app_windows::emit_tasks_changed(&app);
+    Ok(())
 }
 
 #[tauri::command]
-pub fn delete_task(state: State<DbState>, id: i64) -> Result<(), String> {
+pub fn delete_task(app: AppHandle, state: State<DbState>, id: i64) -> Result<(), String> {
     let conn = lock_conn(&state)?;
     conn.execute("DELETE FROM tasks WHERE id=?1", rusqlite::params![id])
         .map_err(|e| e.to_string())?;
+    crate::app_windows::emit_tasks_changed(&app);
     Ok(())
 }
 
@@ -361,15 +367,17 @@ pub fn list_tasks_on_conn(
         params.push(Box::new(priority));
     }
     if filters.today_view.unwrap_or(false) {
-        let today = Utc::now().format("%Y-%m-%d").to_string();
+        let today = crate::time::local_today_date();
         conditions.push(format!(
-            "(t.due_date = ?{} OR (t.priority >= 2 AND t.status = 'active'))",
-            params.len() + 1
+            "(t.due_date = ?{} OR (t.priority >= 2 AND (t.due_date IS NULL OR t.due_date >= ?{})))",
+            params.len() + 1,
+            params.len() + 2
         ));
+        params.push(Box::new(today.clone()));
         params.push(Box::new(today));
     }
     if filters.overdue_view.unwrap_or(false) {
-        let today = Utc::now().format("%Y-%m-%d").to_string();
+        let today = crate::time::local_today_date();
         conditions.push(format!(
             "t.due_date IS NOT NULL AND t.due_date < ?{}",
             params.len() + 1
@@ -512,24 +520,26 @@ pub fn list_tasks(
 }
 
 #[tauri::command]
-pub fn archive_task(state: State<DbState>, id: i64) -> Result<(), String> {
+pub fn archive_task(app: AppHandle, state: State<DbState>, id: i64) -> Result<(), String> {
     let conn = lock_conn(&state)?;
     let now = Utc::now().to_rfc3339();
     conn.execute(
         &format!("UPDATE tasks SET status='{}', archived_at=?1, updated_at=?2 WHERE id=?3", task_status::ARCHIVED),
         rusqlite::params![now, now, id],
     ).map_err(|e| e.to_string())?;
+    crate::app_windows::emit_tasks_changed(&app);
     Ok(())
 }
 
 #[tauri::command]
-pub fn restore_task(state: State<DbState>, id: i64) -> Result<(), String> {
+pub fn restore_task(app: AppHandle, state: State<DbState>, id: i64) -> Result<(), String> {
     let conn = lock_conn(&state)?;
     let now = Utc::now().to_rfc3339();
     conn.execute(
         &format!("UPDATE tasks SET status='{}', archived_at=NULL, updated_at=?1 WHERE id=?2", task_status::ACTIVE),
         rusqlite::params![now, id],
     ).map_err(|e| e.to_string())?;
+    crate::app_windows::emit_tasks_changed(&app);
     Ok(())
 }
 

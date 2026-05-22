@@ -1,6 +1,6 @@
 //! Export Rust IPC types to TypeScript. Run: `npm run generate:bindings`
 use app_lib::bindings_export::normalize_generated_typescript;
-use app_lib::commands::desktop_panel::DesktopPanelSnapshot;
+use app_lib::commands::desktop_panel::{DesktopPanelSnapshot, PanelSettings, TaskPanelRow};
 use app_lib::commands::analytics::{
     DailyAccuracy, DailyReview, FocusHeatmapEntry, ReviewTask, WeeklyAccuracy, WorkloadSummary,
 };
@@ -53,7 +53,9 @@ fn main() {
         .register::<Settings>()
         .register::<NotificationSettings>()
         .register::<HolidayEntry>()
+        .register::<TaskPanelRow>()
         .register::<DesktopPanelSnapshot>()
+        .register::<PanelSettings>()
         .register::<ScheduleEntry>()
         .register::<TimeBlock>()
         .register::<ScheduleDay>()

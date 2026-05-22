@@ -145,6 +145,30 @@ fn desktop_panel_snapshot_lists_today_and_overdue() {
 }
 
 #[test]
+fn high_priority_overdue_not_duplicated_in_today() {
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+
+    create_task_on_conn(
+        &conn,
+        CreateTaskInput {
+            title: "Urgent overdue".into(),
+            description: None,
+            priority: Some(2),
+            due_date: Some("2020-01-01".into()),
+            category_id: None,
+            recurrence_rule: None,
+            estimated_minutes: None,
+        },
+    )
+    .expect("create");
+
+    let snap = snapshot_on_conn(&conn).expect("snapshot");
+    assert!(!snap.today.iter().any(|t| t.title == "Urgent overdue"));
+    assert!(snap.overdue.iter().any(|t| t.title == "Urgent overdue"));
+}
+
+#[test]
 fn get_missing_task_returns_structured_error() {
     let db = in_memory_db();
     let conn = lock_conn(&db).expect("lock");

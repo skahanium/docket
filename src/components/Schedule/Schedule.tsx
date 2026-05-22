@@ -11,6 +11,7 @@ import {
   deselectTask,
   clearFilters,
 } from '../../stores'
+import { addDaysLocal, dayDiffFromToday, localDateString, parseLocalDate } from '../../utils/date'
 
 const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -20,7 +21,7 @@ function formatMinutes(m: number): string {
 }
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
+  return localDateString()
 }
 
 const Schedule: Component = () => {
@@ -37,15 +38,11 @@ const Schedule: Component = () => {
   const data = () => scheduleData()
 
   const prevDay = () => {
-    const d = new Date(scheduleDate() + 'T00:00:00')
-    d.setDate(d.getDate() - 1)
-    setScheduleDate(d.toISOString().slice(0, 10))
+    setScheduleDate(addDaysLocal(scheduleDate(), -1))
   }
 
   const nextDay = () => {
-    const d = new Date(scheduleDate() + 'T00:00:00')
-    d.setDate(d.getDate() + 1)
-    setScheduleDate(d.toISOString().slice(0, 10))
+    setScheduleDate(addDaysLocal(scheduleDate(), 1))
   }
 
   const goToday = () => setScheduleDate(todayStr())
@@ -86,9 +83,8 @@ const Schedule: Component = () => {
   }
 
   const dateLabel = () => {
-    const d = new Date(scheduleDate() + 'T00:00:00')
-    const now = new Date()
-    const diff = Math.floor((d.getTime() - now.getTime()) / 86400000)
+    const d = parseLocalDate(scheduleDate())
+    const diff = dayDiffFromToday(scheduleDate())
     let label = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
     if (diff === 0) label = `今天 · ${label}`
     else if (diff === 1) label = `明天 · ${label}`
@@ -97,7 +93,7 @@ const Schedule: Component = () => {
   }
 
   const weekdayLabel = () => {
-    const d = new Date(scheduleDate() + 'T00:00:00')
+    const d = parseLocalDate(scheduleDate())
     return `周${WEEKDAY_LABELS[d.getDay()]}`
   }
 

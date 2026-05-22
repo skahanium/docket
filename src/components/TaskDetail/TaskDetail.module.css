@@ -17,14 +17,54 @@
 .descTextarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring-focus); }
 
 .propGroup { display: flex; flex-direction: column; gap: 2px; }
-.propRow { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 14px; min-height: 36px; padding: 8px 12px; border-radius: var(--radius-md); transition: background-color 150ms ease; }
+.propRow {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  transition: background-color 150ms ease;
+}
 .propRow:hover { background: var(--bg-hover); }
 .propLabel { font-size: 13px; font-weight: 500; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; }
-.propValue { font-size: 15px; color: var(--text-main); }
-.propSelect { height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; color: var(--text-main); background: var(--bg-elevated); outline: none; cursor: pointer; max-width: 240px; transition: border-color 150ms ease, background-color 150ms ease; }
+.propValue { font-size: 15px; color: var(--text-main); min-width: 0; }
+.propSelect {
+  height: 36px;
+  min-width: 0;
+  width: 100%;
+  max-width: 280px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-main);
+  background: var(--bg-elevated);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
 .propSelect:hover { background: var(--bg-hover); }
 .propSelect:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
-.propDate { height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; color: var(--text-main); background: var(--bg-elevated); outline: none; cursor: pointer; max-width: 240px; transition: border-color 150ms ease, background-color 150ms ease; font-variant-numeric: tabular-nums; }
+.propDate {
+  height: 36px;
+  min-width: 0;
+  width: 100%;
+  max-width: 280px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-main);
+  background: var(--bg-elevated);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+  font-variant-numeric: tabular-nums;
+}
 .propDate:hover { background: var(--bg-hover); }
 .propDate:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
 .clearBtn { border: none; background: none; color: var(--text-label); cursor: pointer; font-size: 18px; padding: 0 4px; line-height: 1; transition: color 150ms ease; }
@@ -39,7 +79,15 @@
 
 .divider { border: none; border-top: 1px solid var(--border-subtle); margin: 4px 0; }
 .sectionLabel { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-label); margin-bottom: 8px; }
-.recurSummary { font-size: 15px; color: var(--text-sub); display: flex; align-items: center; gap: 8px; }
+.recurSummary {
+  font-size: 15px;
+  color: var(--text-sub);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.5;
+  word-break: break-word;
+}
 
 .reminderItem { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 15px; color: var(--text-main); font-variant-numeric: tabular-nums; }
 .reminderDeleteBtn { border: none; background: none; font-size: 14px; color: var(--text-label); cursor: pointer; padding: 2px 4px; opacity: 0; transition: opacity 100ms ease, color 100ms ease; }

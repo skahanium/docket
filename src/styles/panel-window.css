@@ -1,0 +1,13 @@
+/* 面板窗体全透明；毛玻璃由 .shell 负责，勿在 #root 留 padding 以免出现“透明外框” */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+#root {
+  box-sizing: border-box;
+}

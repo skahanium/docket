@@ -1,4 +1,4 @@
-use crate::commands::desktop_panel::snapshot_on_conn;
+use crate::commands::desktop_panel::panel_counts_on_conn;
 use chrono::Timelike;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
@@ -37,10 +37,7 @@ fn maybe_daily_summary(app: &AppHandle, conn: &Connection) {
     }
     let _ = crate::db::set_setting(conn, &today_key, "true");
 
-    let snap = snapshot_on_conn(conn).ok();
-    let (today_n, overdue_n) = snap
-        .map(|s| (s.today.len(), s.overdue.len()))
-        .unwrap_or((0, 0));
+    let (today_n, overdue_n) = panel_counts_on_conn(conn).unwrap_or((0, 0));
 
     let _ = app
         .notification()
@@ -66,20 +63,19 @@ fn maybe_overdue_reminder(app: &AppHandle, conn: &Connection) {
         }
     }
 
-    let snap = match snapshot_on_conn(conn) {
-        Ok(s) => s,
+    let (_, overdue_n) = match panel_counts_on_conn(conn) {
+        Ok((_, o)) => (0, o),
         Err(_) => return,
     };
-    if snap.overdue.is_empty() {
+    if overdue_n == 0 {
         return;
     }
     let _ = crate::db::set_setting(conn, "notify_overdue_last_at", &now.to_string());
-    let n = snap.overdue.len();
     let _ = app
         .notification()
         .builder()
         .title("Docket · 逾期提醒")
-        .body(format!("你有 {n} 项任务已逾期"))
+        .body(format!("你有 {overdue_n} 项任务已逾期"))
         .show();
 }
 

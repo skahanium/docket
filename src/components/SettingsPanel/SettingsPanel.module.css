@@ -3,11 +3,20 @@
 .section { margin-bottom: 28px; }
 .sectionTitle { font-size: 13px; font-weight: 600; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.field { display: flex; flex-direction: column; gap: 6px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .label { font-size: 13px; color: var(--text-sub); }
 .input {
-  height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
-  font-family: inherit; font-size: 14px; color: var(--text-main); background: var(--bg-elevated);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-main);
+  background: var(--bg-elevated);
 }
 .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
 .hint { font-size: 13px; color: var(--text-sub); line-height: 1.5; margin-bottom: 12px; }

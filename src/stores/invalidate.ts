@@ -1,4 +1,3 @@
-import { emit } from '@tauri-apps/api/event'
 import { createSignal } from 'solid-js'
 import { activeView, selectedTaskId } from './navigation'
 import {
@@ -9,9 +8,9 @@ import {
 } from './resources'
 
 /** Bumped on every task mutation so stats-panel auxiliary resources re-fetch. */
-export let taskMutationEpoch: ReturnType<typeof createSignal<number>>[0]
+export let taskMutationEpoch: ReturnType<typeof createSignal<number>>[0] = () => 0
 
-let bumpTaskMutationEpoch: () => void
+let bumpTaskMutationEpoch: (() => void) | undefined
 
 export function installInvalidate(): void {
   let bump: (v: number | ((prev: number) => number)) => number
@@ -50,8 +49,5 @@ export function invalidateAfterTaskMutation(
   if (calendar) void refetchCalendar()
   if (detail) void refetchDetail()
   if (stats) void refetchStats()
-  bumpTaskMutationEpoch()
-  if ('__TAURI_INTERNALS__' in window) {
-    void emit('tasks-changed')
-  }
+  bumpTaskMutationEpoch?.()
 }

@@ -42,7 +42,11 @@ const PRIORITY_OPTIONS = [
 
 const TaskDetail: Component = () => {
   const detail = () => taskDetail()
-  const open = () => taskDetail.state === 'ready' && detail() !== null
+  const open = () => {
+    const td = taskDetail
+    if (!td) return false
+    return td.state === 'ready' && detail() !== null
+  }
 
   const [editingDesc, setEditingDesc] = createSignal(false)
   const [descDraft, setDescDraft] = createSignal('')

@@ -1,7 +1,10 @@
 import { createSignal, createEffect, onCleanup } from 'solid-js'
+import { emit } from '@tauri-apps/api/event'
+import { isRuntimeReady } from '../bindings/core'
+import type { ResolvedTheme } from '../utils/themeSync'
 
-export type ThemeMode = 'light' | 'dark' | 'system'
-export type ResolvedTheme = 'light' | 'dark'
+export type { ThemeMode, ResolvedTheme } from '../utils/themeSync'
+import type { ThemeMode } from '../utils/themeSync'
 
 const stored = (typeof localStorage !== 'undefined' ? localStorage.getItem('docket-theme') : null) as ThemeMode | null
 
@@ -31,6 +34,9 @@ export function installTheme(): void {
     const theme = resolvedTheme()
     document.documentElement.setAttribute('data-theme', theme)
     if (typeof localStorage !== 'undefined') localStorage.setItem('docket-theme', themeMode())
+    if (isRuntimeReady()) {
+      void emit('theme-changed', theme as ResolvedTheme)
+    }
   })
 
   if (systemDark) {

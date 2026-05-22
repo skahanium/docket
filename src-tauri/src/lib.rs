@@ -44,7 +44,10 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             "today" => app_windows::show_main_today(app),
             "quick_add" => app_windows::show_main_quick_add(app),
             "toggle_panel" => {
-                app_windows::toggle_panel(app);
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = app_windows::toggle_panel_async(&app).await;
+                });
             }
             "quit" => {
                 app.exit(0);
@@ -74,20 +77,6 @@ fn wire_main_window_events(app: &tauri::AppHandle) {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 if let Some(w) = app_handle.get_webview_window("main") {
-                    let _ = w.hide();
-                }
-            }
-        });
-    }
-}
-
-fn wire_panel_window_events(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("panel") {
-        let app_handle = app.clone();
-        window.on_window_event(move |event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                if let Some(w) = app_handle.get_webview_window("panel") {
                     let _ = w.hide();
                 }
             }
@@ -137,9 +126,14 @@ pub fn run() {
                 format!("无法初始化默认数据: {e}")
             })?;
 
-            if !db::check_integrity(&conn).unwrap_or(false) {
-                log::warn!("Database integrity check failed — continuing anyway");
-            }
+            let db_path_for_integrity = db_path.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Ok(check_conn) = Connection::open(&db_path_for_integrity) {
+                    if !db::check_integrity(&check_conn).unwrap_or(false) {
+                        log::warn!("Database integrity check failed — continuing anyway");
+                    }
+                }
+            });
 
             let scheduler_conn =
                 Connection::open(&db_path).map_err(|e| {
@@ -159,7 +153,6 @@ pub fn run() {
             {
                 setup_tray(app)?;
                 wire_main_window_events(app.handle());
-                wire_panel_window_events(app.handle());
             }
 
             Ok(())
@@ -218,8 +211,23 @@ pub fn run() {
             commands::settings::reveal_database_folder,
             commands::settings::list_holidays,
             commands::desktop_panel::get_desktop_panel_snapshot,
+            commands::desktop_panel::get_panel_settings,
+            commands::desktop_panel::update_panel_settings,
             commands::desktop_panel::focus_task_from_panel,
+            commands::desktop_panel::toggle_desktop_panel,
+            commands::desktop_panel::is_desktop_panel_visible,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Ready = event {
+                #[cfg(desktop)]
+                {
+                    let app = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        app_windows::restore_panel_if_saved_async(&app).await;
+                    });
+                }
+            }
+        });
 }

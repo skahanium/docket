@@ -1,5 +1,10 @@
 //! HH:MM clock helpers shared by schedule and analytics commands.
 
+/// Local calendar date as `YYYY-MM-DD` (used for "today" / overdue boundaries).
+pub fn local_today_date() -> String {
+    chrono::Local::now().format("%Y-%m-%d").to_string()
+}
+
 /// Parse `"HH:MM"` into minutes since midnight.
 pub fn time_to_minutes(time: &str) -> i64 {
     let parts: Vec<&str> = time.split(':').collect();
@@ -34,15 +39,28 @@ pub fn add_minutes(time: &str, add: i64) -> String {
 /// Validate that a string is a valid `"HH:MM"` time (00:00–23:59).
 pub fn is_valid_hhmm(s: &str) -> bool {
     let parts: Vec<&str> = s.split(':').collect();
-    if parts.len() != 2 { return false; }
-    let Ok(h) = parts[0].parse::<u32>() else { return false; };
-    let Ok(m) = parts[1].parse::<u32>() else { return false; };
+    if parts.len() != 2 {
+        return false;
+    }
+    let Ok(h) = parts[0].parse::<u32>() else {
+        return false;
+    };
+    let Ok(m) = parts[1].parse::<u32>() else {
+        return false;
+    };
     h < 24 && m < 60 && parts[0].len() == 2 && parts[1].len() == 2
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_today_is_yyyy_mm_dd() {
+        let d = local_today_date();
+        assert_eq!(d.len(), 10);
+        assert!(d.as_bytes()[4] == b'-');
+    }
 
     #[test]
     fn round_trip_minutes() {
