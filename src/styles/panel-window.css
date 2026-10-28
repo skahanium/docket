@@ -1,10 +1,16 @@
-/* 面板窗体全透明；毛玻璃由 .shell 负责，勿在 #root 留 padding 以免出现“透明外框” */
+/* 与主窗同一套页面底。毛玻璃仅在非 macOS 且未开「不透明」时由 html[data-panel-glass] 打开。 */
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
   overflow: hidden;
+  background: var(--bg-page);
+}
+
+html[data-panel-glass="1"],
+html[data-panel-glass="1"] body,
+html[data-panel-glass="1"] #root {
   background: transparent;
 }
 

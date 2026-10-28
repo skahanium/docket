@@ -91,7 +91,6 @@ const TopBar: Component<Props> = (props) => {
 
   return (
     <header class={styles.bar} data-tauri-drag-region>
-      <span class={styles.brand}>Docket</span>
       <div class={styles.right}>
         <div class={styles.searchWrap}>
           <span class={styles.searchIcon}>

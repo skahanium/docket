@@ -18,6 +18,7 @@ import {
   updatePanelSettings,
   type PanelSettings,
 } from '../../bindings/panel'
+import { isMacOS } from '../../utils/platform'
 
 const SettingsPanel: Component = () => {
   const [loaded] = createResource(getSettings)
@@ -150,16 +151,18 @@ const SettingsPanel: Component = () => {
             />
             <span class={styles.label}>窗口置顶（关闭后可被其它窗口遮挡）</span>
           </label>
-          <label class={styles.field} style={{ 'flex-direction': 'row', 'align-items': 'center', gap: '8px' }}>
-            <input
-              type="checkbox"
-              checked={panelDraft()!.panel_opaque}
-              onChange={(e) =>
-                setPanelDraft((p) => (p ? { ...p, panel_opaque: e.currentTarget.checked } : p))
-              }
-            />
-            <span class={styles.label}>不透明背景（关闭毛玻璃，适合老机器）</span>
-          </label>
+          <Show when={!isMacOS()}>
+            <label class={styles.field} style={{ 'flex-direction': 'row', 'align-items': 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                checked={panelDraft()!.panel_opaque}
+                onChange={(e) =>
+                  setPanelDraft((p) => (p ? { ...p, panel_opaque: e.currentTarget.checked } : p))
+                }
+              />
+              <span class={styles.label}>不透明背景（关闭毛玻璃，适合老机器）</span>
+            </label>
+          </Show>
           <label class={styles.field}>
             <span class={styles.label}>可见时刷新间隔（秒，30–600）</span>
             <input

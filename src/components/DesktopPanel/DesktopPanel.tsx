@@ -9,6 +9,7 @@ import {
   type PanelSettings,
   type TaskPanelRow,
 } from '../../bindings/panel'
+import { isMacOS } from '../../utils/platform'
 
 const ROW_HEIGHT = 36
 const VIRTUAL_THRESHOLD = 40
@@ -26,7 +27,7 @@ function daysOverdue(dueDate: string | null): number | null {
 const DesktopPanel: Component = () => {
   const [visible, setVisible] = createSignal(false)
   const [settings, setSettings] = createSignal<PanelSettings>({
-    panel_opaque: false,
+    panel_opaque: true,
     panel_always_on_top: false,
     panel_refresh_seconds: 120,
   })
@@ -91,6 +92,12 @@ const DesktopPanel: Component = () => {
     void getCurrentWindow().startDragging().catch(() => {})
   }
 
+  const useGlass = createMemo(() => !isMacOS() && !settings().panel_opaque)
+
+  createEffect(() => {
+    document.documentElement.dataset.panelGlass = useGlass() ? '1' : '0'
+  })
+
   const allItems = createMemo(() => [
     ...(snapshot()?.today ?? []).map((t) => ({ ...t, section: 'today' as const })),
     ...(snapshot()?.overdue ?? []).map((t) => ({ ...t, section: 'overdue' as const })),
@@ -141,16 +148,20 @@ const DesktopPanel: Component = () => {
   const renderList = (items: TaskPanelRow[] | undefined, section: 'today' | 'overdue') => (
     <Show
       when={items && items.length > 0}
-      fallback={<p class={styles.empty}>无</p>}
+      fallback={<p class={styles.empty}>暂无任务</p>}
     >
       <For each={items!}>{(task) => renderRow({ ...task, section })}</For>
     </Show>
   )
 
+  const todayCount = () => snapshot()?.today.length ?? 0
+  const overdueCount = () => snapshot()?.overdue.length ?? 0
+  const isEmpty = () => todayCount() + overdueCount() === 0
+
   return (
     <div
       class={styles.shell}
-      classList={{ [styles.shellOpaque]: settings().panel_opaque }}
+      classList={{ [styles.shellGlass]: useGlass() }}
     >
       <header
         class={styles.header}
@@ -158,9 +169,6 @@ const DesktopPanel: Component = () => {
         onPointerDown={onHeaderPointerDown}
       >
         <span class={styles.title}>今日任务</span>
-        <span class={styles.dragHint} aria-hidden="true">
-          ⋮⋮
-        </span>
       </header>
       <div
         class={styles.body}
@@ -183,26 +191,32 @@ const DesktopPanel: Component = () => {
             }
           >
             <Show
-              when={
-                (snapshot()?.today.length ?? 0) + (snapshot()?.overdue.length ?? 0) <
-                VIRTUAL_THRESHOLD
-              }
+              when={!isEmpty()}
               fallback={
-                <>
-                  <p class={styles.sectionLabel}>
-                    今日 ({snapshot()?.today.length ?? 0}) · 逾期 (
-                    {snapshot()?.overdue.length ?? 0})
-                  </p>
-                  <div style={{ height: `${virtualWindow().padTop}px` }} />
-                  <For each={virtualWindow().visible}>{(task) => renderRow(task)}</For>
-                  <div style={{ height: `${virtualWindow().padBottom}px` }} />
-                </>
+                <div class={styles.emptyBlock}>
+                  <p class={styles.emptyTitle}>暂无任务</p>
+                  <p class={styles.emptyHint}>今天的安排会出现在这里</p>
+                </div>
               }
             >
-              <p class={styles.sectionLabel}>今日 ({snapshot()?.today.length ?? 0})</p>
-              {renderList(snapshot()?.today, 'today')}
-              <p class={styles.sectionLabel}>逾期 ({snapshot()?.overdue.length ?? 0})</p>
-              {renderList(snapshot()?.overdue, 'overdue')}
+              <Show
+                when={todayCount() + overdueCount() < VIRTUAL_THRESHOLD}
+                fallback={
+                  <>
+                    <p class={styles.sectionLabel}>
+                      今日 ({todayCount()}) · 逾期 ({overdueCount()})
+                    </p>
+                    <div style={{ height: `${virtualWindow().padTop}px` }} />
+                    <For each={virtualWindow().visible}>{(task) => renderRow(task)}</For>
+                    <div style={{ height: `${virtualWindow().padBottom}px` }} />
+                  </>
+                }
+              >
+                <p class={styles.sectionLabel}>今日 ({todayCount()})</p>
+                {renderList(snapshot()?.today, 'today')}
+                <p class={styles.sectionLabel}>逾期 ({overdueCount()})</p>
+                {renderList(snapshot()?.overdue, 'overdue')}
+              </Show>
             </Show>
           </Show>
         </Show>

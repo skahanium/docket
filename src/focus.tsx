@@ -3,11 +3,16 @@ import { ErrorBoundary } from 'solid-js'
 import FocusTimer from './components/FocusTimer/FocusTimer'
 import './styles/global.css'
 import { waitForRuntime } from './boot'
+import { installCrossWindowThemeSync } from './utils/themeSync'
+import { markDocumentPlatform } from './utils/platform'
 
 const root = document.getElementById('root')
 
 async function start() {
+  markDocumentPlatform()
   await waitForRuntime()
+  const disposeTheme = installCrossWindowThemeSync()
+  window.addEventListener('beforeunload', disposeTheme, { once: true })
   if (!root) return
   render(
     () => (

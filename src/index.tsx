@@ -5,6 +5,7 @@ import './styles/global.css'
 import App from './App.tsx'
 import { bootstrapStores } from './stores'
 import { waitForRuntime } from './boot'
+import { markDocumentPlatform } from './utils/platform'
 
 const root = document.getElementById('root')
 
@@ -80,6 +81,7 @@ window.addEventListener('error', (e) => {
 
 async function start() {
   try {
+    markDocumentPlatform()
     await waitForRuntime()
     boot()
   } catch (err) {
