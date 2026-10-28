@@ -45,12 +45,11 @@ pub fn stop_focus(state: State<DbState>, session_id: i64, completed: Option<bool
     let now = Utc::now().to_rfc3339();
     let completed = completed.unwrap_or(true);
 
-    // Calculate duration
     let started_at: String = conn.query_row(
-        "SELECT started_at FROM focus_sessions WHERE id=?1",
+        "SELECT started_at FROM focus_sessions WHERE id=?1 AND ended_at IS NULL",
         [session_id],
         |row| row.get(0),
-    ).map_err(|e| format!("Session not found: {}", e))?;
+    ).map_err(|_| "专注会话已结束或不存在".to_string())?;
 
     let started: chrono::DateTime<Utc> = chrono::DateTime::parse_from_rfc3339(&started_at)
         .map_err(|e| e.to_string())?
@@ -60,10 +59,13 @@ pub fn stop_focus(state: State<DbState>, session_id: i64, completed: Option<bool
         .with_timezone(&Utc);
     let duration = (ended - started).num_minutes().max(1);
 
-    conn.execute(
-        "UPDATE focus_sessions SET ended_at=?1, duration_minutes=?2, completed=?3 WHERE id=?4",
+    let updated = conn.execute(
+        "UPDATE focus_sessions SET ended_at=?1, duration_minutes=?2, completed=?3 WHERE id=?4 AND ended_at IS NULL",
         rusqlite::params![now, duration, if completed { 1 } else { 0 }, session_id],
     ).map_err(|e| e.to_string())?;
+    if updated == 0 {
+        return Err("专注会话已结束或不存在".into());
+    }
 
     let session = get_session_by_id(&conn, session_id)?;
     Ok(session)

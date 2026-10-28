@@ -304,3 +304,23 @@ fn recurrence_instance_inherits_tags_and_pending_subtasks() {
     assert_eq!(title, "prep");
     assert_eq!(status, "pending");
 }
+
+#[test]
+fn create_task_rejects_blank_title() {
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+    let err = create_task_on_conn(
+        &conn,
+        CreateTaskInput {
+            title: "   ".into(),
+            description: None,
+            priority: None,
+            due_date: None,
+            category_id: None,
+            recurrence_rule: None,
+            estimated_minutes: None,
+        },
+    )
+    .unwrap_err();
+    assert!(err.to_string().contains("标题"));
+}

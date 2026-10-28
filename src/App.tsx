@@ -14,6 +14,7 @@ import {
   scheduleDailyReviewCheck,
   completeTaskFromList,
   refetchTasks,
+  invalidateAfterTaskMutation,
 } from './stores'
 import TopBar from './components/TopBar/TopBar'
 import Sidebar from './components/Sidebar/Sidebar'
@@ -55,11 +56,13 @@ const App: Component = () => {
       setActiveView('today')
       selectTask(e.payload)
     })
+    const u4 = listen('tasks-changed', () => invalidateAfterTaskMutation())
     onCleanup(() => {
       document.removeEventListener('keydown', handleKey)
       u1.then(fn => fn())
       u2.then(fn => fn())
       u3.then(fn => fn())
+      u4.then(fn => fn())
     })
 
     scheduleDailyReviewCheck()

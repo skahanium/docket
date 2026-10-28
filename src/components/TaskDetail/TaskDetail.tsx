@@ -27,6 +27,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import SubtaskList from '../SubtaskList/SubtaskList'
 import Button from '../shared/Button'
 import ConfirmDialog from '../ConfirmDialog/ConfirmDialog'
+import { descriptionSavePatch } from '../../utils/taskPatch'
 
 const STATUS_LABELS: Record<string, string> = {
   active: '进行中',
@@ -170,7 +171,10 @@ const TaskDetail: Component = () => {
             <Show when={!editingDesc()} fallback={
               <textarea class={styles.descTextarea} value={descDraft()}
                 onInput={(e) => setDescDraft(e.currentTarget.value)}
-                onBlur={() => { updateProp({ description: descDraft() || null }); setEditingDesc(false) }}
+                onBlur={() => {
+                  updateProp(descriptionSavePatch(descDraft()))
+                  setEditingDesc(false)
+                }}
                 onKeyDown={(e) => { if (e.key === 'Escape') { setEditingDesc(false) } }}
                 autofocus />
             }>

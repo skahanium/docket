@@ -59,6 +59,9 @@ pub struct SortOption {
 }
 
 pub fn create_task_on_conn(conn: &Connection, input: CreateTaskInput) -> AppResult<i64> {
+    if input.title.trim().is_empty() {
+        return Err(AppError::message("标题不能为空"));
+    }
     let now = Utc::now().to_rfc3339();
     let priority = input.priority.unwrap_or(0);
 
@@ -98,6 +101,9 @@ pub fn update_task(app: AppHandle, state: State<DbState>, id: i64, input: Update
     let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now.clone())];
 
     if let Some(ref title) = input.title {
+        if title.trim().is_empty() {
+            return Err("标题不能为空".into());
+        }
         sets.push(format!("title = ?{}", params.len() + 1));
         params.push(Box::new(title.clone()));
     }
