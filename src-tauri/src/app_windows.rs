@@ -122,14 +122,21 @@ pub async fn ensure_panel_window(app: &AppHandle) -> Result<WebviewWindow, Strin
         return Ok(window);
     }
 
-    let window = WebviewWindowBuilder::new(app, "panel", WebviewUrl::App("panel.html".into()))
+    #[allow(unused_mut)] // `transparent()` is cfg'd out on macOS
+    let mut builder = WebviewWindowBuilder::new(app, "panel", WebviewUrl::App("panel.html".into()))
         .title("Docket 任务")
         .inner_size(320.0, 480.0)
         .resizable(true)
         .minimizable(true)
         .maximizable(false)
-        .decorations(false)
-        .transparent(true)
+        .decorations(false);
+    // Tauri 2 gates `transparent()` behind macos-private-api on macOS.
+    // Keep glass on Windows/Linux; skip private APIs on Mac.
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder.transparent(true);
+    }
+    let window = builder
         .shadow(true)
         .visible(false)
         .skip_taskbar(true)
