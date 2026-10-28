@@ -75,6 +75,7 @@ const App: Component = () => {
   const viewTitle = () => {
     switch (activeView?.() ?? 'all') {
       case 'today': return '今日任务'
+      case 'overdue': return '逾期任务'
       case 'schedule': return '日程'
       case 'archive': return '归档'
       default: return '全部任务'

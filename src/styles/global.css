@@ -28,8 +28,8 @@
   --warning: #DFAB01;
   --warning-light: rgba(223,171,1,0.08);
 
-  --font-sans: "Geist Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
-  --font-mono: "Geist Mono", "SF Mono", "Fira Code", "JetBrains Mono", "Consolas", monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "JetBrains Mono", "Consolas", ui-monospace, monospace;
   --radius-sm: 4px;
   --radius: 6px;
   --radius-md: 8px;

@@ -10,8 +10,8 @@ import { installInvalidate } from './invalidate'
 export function installAppStore(): void {
   installTheme()
   installNavigation()
-  installFiltersSort()
   installCalendarUi()
+  installFiltersSort()
   installToast()
   installInvalidate()
   installAppChrome()

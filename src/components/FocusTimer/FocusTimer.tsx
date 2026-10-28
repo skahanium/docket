@@ -13,7 +13,6 @@ function fmtMinSec(totalSeconds: number): string {
 const FocusTimer: Component = () => {
   const [session, setSession] = createSignal<FocusSession | null>(null)
   const [elapsed, setElapsed] = createSignal(0)
-  const [paused, setPaused] = createSignal(false)
   const [stopping, setStopping] = createSignal(false)
 
   let timerInterval: ReturnType<typeof setInterval> | null = null
@@ -34,7 +33,7 @@ const FocusTimer: Component = () => {
   onMount(() => {
     load()
     timerInterval = setInterval(() => {
-      if (!paused() && session()) {
+      if (session()) {
         setElapsed(e => e + 1)
       }
     }, 1000)
@@ -43,9 +42,6 @@ const FocusTimer: Component = () => {
   onCleanup(() => {
     if (timerInterval) clearInterval(timerInterval)
   })
-
-  const handlePause = () => setPaused(true)
-  const handleResume = () => setPaused(false)
 
   const handleComplete = async () => {
     if (!session() || stopping()) return
@@ -78,8 +74,8 @@ const FocusTimer: Component = () => {
     <div class={styles.window}>
       {session() ? (
         <>
-          <p class={styles.statusLabel + (paused() ? ' ' + styles.statusPaused : '')}>
-            {paused() ? '已暂停' : session()!.task_title ? `正在专注: ${session()!.task_title}` : '专注中'}
+          <p class={styles.statusLabel}>
+            {session()!.task_title ? `正在专注: ${session()!.task_title}` : '专注中'}
           </p>
 
           <p class={styles.timer}>
@@ -90,16 +86,6 @@ const FocusTimer: Component = () => {
           </p>
 
           <div class={styles.actions}>
-            {paused() ? (
-              <button class={`${styles.btn} ${styles.resumeBtn}`} onClick={handleResume}>
-                继续
-              </button>
-            ) : (
-              <button class={`${styles.btn} ${styles.pauseBtn}`} onClick={handlePause}>
-                暂停
-              </button>
-            )}
-
             <button class={`${styles.btn} ${styles.completeBtn}`} onClick={handleComplete} disabled={stopping()}>
               {stopping() ? '处理中…' : '完成'}
             </button>

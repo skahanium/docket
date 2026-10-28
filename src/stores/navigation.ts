@@ -1,6 +1,6 @@
 import { createSignal } from 'solid-js'
 
-export type ViewKind = 'all' | 'today' | 'schedule' | 'calendar' | 'stats' | 'archive' | 'settings'
+export type ViewKind = 'all' | 'today' | 'overdue' | 'schedule' | 'calendar' | 'stats' | 'archive' | 'settings'
 
 export let activeView: ReturnType<typeof createSignal<ViewKind>>[0]
 export let setActiveView: ReturnType<typeof createSignal<ViewKind>>[1]

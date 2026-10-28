@@ -19,6 +19,7 @@ interface Props {
 const VIEWS: { key: ViewKind; label: string }[] = [
   { key: 'all', label: '全部' },
   { key: 'today', label: '今日' },
+  { key: 'overdue', label: '逾期' },
   { key: 'schedule', label: '日程' },
   { key: 'calendar', label: '日历' },
 ]

@@ -32,6 +32,7 @@ pub fn normalize_generated_typescript(source: &str) -> String {
         "scheduled_minutes",
         "duration_minutes",
         "minutes",
+        "panel_refresh_seconds",
     ];
 
     for field in required_number_fields {
@@ -65,5 +66,12 @@ mod tests {
         let fixed = normalize_generated_typescript(raw);
         assert!(fixed.contains("id: number,"));
         assert!(!fixed.contains("id: number | null"));
+    }
+
+    #[test]
+    fn normalizes_panel_refresh_seconds() {
+        let raw = "export type PanelSettings = {\n\tpanel_refresh_seconds: number | null,\n};\n";
+        let fixed = normalize_generated_typescript(raw);
+        assert!(fixed.contains("panel_refresh_seconds: number,"));
     }
 }

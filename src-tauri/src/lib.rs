@@ -123,6 +123,8 @@ pub fn run() {
                 log::error!("Failed to initialize database: {e}");
                 format!("无法初始化数据库: {e}")
             })?;
+            conn.execute_batch("PRAGMA busy_timeout=5000;")
+                .map_err(|e| format!("设置 busy_timeout 失败: {e}"))?;
             db::seed_defaults(&conn).map_err(|e| {
                 log::error!("Failed to seed defaults: {e}");
                 format!("无法初始化默认数据: {e}")

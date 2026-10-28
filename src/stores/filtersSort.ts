@@ -1,4 +1,5 @@
 import { createSignal } from 'solid-js'
+import { setSelectedDate } from './calendarUi'
 
 export let searchQuery: ReturnType<typeof createSignal<string>>[0]
 export let setSearchQuery: ReturnType<typeof createSignal<string>>[1]
@@ -31,5 +32,6 @@ export function installFiltersSort(): void {
     setActiveCategoryId(null)
     setActiveTagId(null)
     setActivePriority(null)
+    setSelectedDate(null)
   }
 }

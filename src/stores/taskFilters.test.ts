@@ -17,6 +17,13 @@ describe('buildTaskListFilters', () => {
     expect(f.is_archive).toBeUndefined()
   })
 
+  it('maps overdue view', () => {
+    const f = buildTaskListFilters({ ...base, activeView: 'overdue' })
+    expect(f.status).toBe('active')
+    expect(f.overdue_view).toBe(true)
+    expect(f.today_view).toBeUndefined()
+  })
+
   it('maps archive view', () => {
     const f = buildTaskListFilters({ ...base, activeView: 'archive' })
     expect(f.status).toBeUndefined()

@@ -47,23 +47,10 @@ export type DailyReview = {
 	plan_accuracy: number,
 };
 
-export type TaskPanelRow = {
-	id: number,
-	title: string,
-	due_date: string | null,
-	priority: number,
-};
-
 export type DesktopPanelSnapshot = {
 	today: TaskPanelRow[],
 	overdue: TaskPanelRow[],
 	generated_at: string,
-};
-
-export type PanelSettings = {
-	panel_opaque: boolean,
-	panel_always_on_top: boolean,
-	panel_refresh_seconds: number,
 };
 
 export type FocusHeatmapEntry = {
@@ -109,6 +96,12 @@ export type NotificationSettings = {
 	notify_daily_time: string,
 	notify_overdue: boolean,
 	notify_overdue_interval_minutes: string,
+};
+
+export type PanelSettings = {
+	panel_opaque: boolean,
+	panel_always_on_top: boolean,
+	panel_refresh_seconds: number,
 };
 
 export type Reminder = {
@@ -197,6 +190,13 @@ export type Tag = {
 	id: number,
 	name: string,
 	color: string | null,
+};
+
+export type TaskPanelRow = {
+	id: number,
+	title: string,
+	due_date: string | null,
+	priority: number,
 };
 
 export type TaskSummary = {

@@ -49,7 +49,7 @@ export function installResources(): void {
           due_date: filters.due_date ?? null,
           search_query: filters.search_query ?? null,
           today_view: filters.today_view ?? null,
-          overdue_view: null,
+          overdue_view: filters.overdue_view ?? null,
           priority: filters.priority ?? null,
         },
         sort,

@@ -15,6 +15,7 @@ export interface BuiltTaskListFilters {
   tag_id?: number
   search_query?: string
   today_view?: boolean
+  overdue_view?: boolean
   due_date?: string
   priority?: number
   is_archive?: boolean
@@ -35,13 +36,14 @@ export function buildTaskListFilters(input: TaskListFilterInput): BuiltTaskListF
     status:
       activeView === 'archive'
         ? undefined
-        : activeView === 'all' || activeView === 'today'
+        : activeView === 'all' || activeView === 'today' || activeView === 'overdue'
           ? 'active'
           : undefined,
     category_id: activeCategoryId ?? undefined,
     tag_id: activeTagId ?? undefined,
     search_query: searchQuery || undefined,
     today_view: activeView === 'today' ? true : undefined,
+    overdue_view: activeView === 'overdue' ? true : undefined,
     due_date: selectedDate ?? undefined,
     priority: activePriority ?? undefined,
     is_archive: activeView === 'archive' ? true : undefined,

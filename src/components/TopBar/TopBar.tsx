@@ -1,4 +1,4 @@
-import { type Component, createSignal, onMount, onCleanup, Show } from 'solid-js'
+import { type Component, createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js'
 import { listen } from '@tauri-apps/api/event'
 import styles from './TopBar.module.css'
 import { themeMode, setThemeMode, type ThemeMode } from '../../stores'
@@ -44,6 +44,23 @@ const TITLES: Record<ThemeMode, string> = { light: '日间模式', dark: '夜间
 const TopBar: Component<Props> = (props) => {
   const [panelVisible, setPanelVisible] = createSignal(false)
   const [panelReady, setPanelReady] = createSignal(false)
+  const [searchDraft, setSearchDraft] = createSignal(props.searchValue)
+  let searchTimer: ReturnType<typeof setTimeout> | undefined
+
+  createEffect(() => setSearchDraft(props.searchValue))
+
+  const emitSearch = (value: string) => {
+    if (searchTimer) clearTimeout(searchTimer)
+    if (value === '') {
+      props.onSearchInput('')
+      return
+    }
+    searchTimer = setTimeout(() => props.onSearchInput(value), 200)
+  }
+
+  onCleanup(() => {
+    if (searchTimer) clearTimeout(searchTimer)
+  })
 
   onMount(() => {
     if (!isRuntimeReady()) return
@@ -84,12 +101,16 @@ const TopBar: Component<Props> = (props) => {
           </span>
           <input
             type="text" class={styles.searchInput}
-            value={props.searchValue}
-            onInput={(e) => props.onSearchInput(e.currentTarget.value)}
+            value={searchDraft()}
+            onInput={(e) => {
+              const v = e.currentTarget.value
+              setSearchDraft(v)
+              emitSearch(v)
+            }}
             placeholder="搜索任务…"
           />
-          {props.searchValue && (
-            <button class={styles.clearBtn} onClick={() => props.onSearchInput('')}>
+          {searchDraft() && (
+            <button class={styles.clearBtn} onClick={() => { setSearchDraft(''); emitSearch('') }}>
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M4 4l8 8M12 4l-8 8" />
               </svg>
