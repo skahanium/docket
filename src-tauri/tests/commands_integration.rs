@@ -175,3 +175,132 @@ fn get_missing_task_returns_structured_error() {
     let err = get_task_on_conn(&conn, 9999).unwrap_err();
     assert!(err.to_string().contains("9999"));
 }
+
+fn daily_rule(end_count: i32) -> String {
+    format!(r#"{{"freq":"daily","interval":1,"end_type":"count","end_count":{end_count}}}"#)
+}
+
+fn series_ids(conn: &rusqlite::Connection, root: i64) -> Vec<i64> {
+    let mut stmt = conn
+        .prepare("SELECT id FROM tasks WHERE id=?1 OR recurrence_parent_id=?1 ORDER BY id")
+        .unwrap();
+    stmt.query_map([root], |r| r.get(0))
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .collect()
+}
+
+#[test]
+fn recurrence_end_count_two_stops_after_second_instance() {
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+    let root = create_task_on_conn(
+        &conn,
+        CreateTaskInput {
+            title: "Repeat twice".into(),
+            description: None,
+            priority: None,
+            due_date: Some("2026-05-11".into()),
+            category_id: None,
+            recurrence_rule: Some(daily_rule(2)),
+            estimated_minutes: None,
+        },
+    )
+    .expect("create");
+
+    complete_task_on_conn(&conn, root).expect("complete root");
+    let after_root = series_ids(&conn, root);
+    assert_eq!(after_root.len(), 2);
+    let child = *after_root.iter().find(|id| **id != root).unwrap();
+    let child_parent: i64 = conn
+        .query_row(
+            "SELECT recurrence_parent_id FROM tasks WHERE id=?1",
+            [child],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(child_parent, root);
+
+    complete_task_on_conn(&conn, child).expect("complete child");
+    assert_eq!(series_ids(&conn, root).len(), 2);
+}
+
+#[test]
+fn recurrence_end_count_one_does_not_spawn() {
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+    let root = create_task_on_conn(
+        &conn,
+        CreateTaskInput {
+            title: "Once".into(),
+            description: None,
+            priority: None,
+            due_date: Some("2026-05-11".into()),
+            category_id: None,
+            recurrence_rule: Some(daily_rule(1)),
+            estimated_minutes: None,
+        },
+    )
+    .expect("create");
+
+    complete_task_on_conn(&conn, root).expect("complete");
+    assert_eq!(series_ids(&conn, root).len(), 1);
+}
+
+#[test]
+fn recurrence_instance_inherits_tags_and_pending_subtasks() {
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+    let root = create_task_on_conn(
+        &conn,
+        CreateTaskInput {
+            title: "Templated".into(),
+            description: None,
+            priority: None,
+            due_date: Some("2026-05-11".into()),
+            category_id: None,
+            recurrence_rule: Some(daily_rule(5)),
+            estimated_minutes: None,
+        },
+    )
+    .expect("create");
+
+    conn.execute("INSERT INTO tags (name, color) VALUES ('work', '#00f')", [])
+        .unwrap();
+    conn.execute(
+        "INSERT INTO task_tags (task_id, tag_id) VALUES (?1, 1)",
+        [root],
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO subtasks (task_id, title, status, sort_order, created_at)
+         VALUES (?1, 'prep', 'pending', 0, '2026-05-11T00:00:00+00:00')",
+        [root],
+    )
+    .unwrap();
+
+    complete_task_on_conn(&conn, root).expect("complete");
+    let child = *series_ids(&conn, root)
+        .iter()
+        .find(|id| **id != root)
+        .unwrap();
+
+    let tag_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM task_tags WHERE task_id=?1",
+            [child],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(tag_count, 1);
+
+    let (title, status): (String, String) = conn
+        .query_row(
+            "SELECT title, status FROM subtasks WHERE task_id=?1",
+            [child],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(title, "prep");
+    assert_eq!(status, "pending");
+}

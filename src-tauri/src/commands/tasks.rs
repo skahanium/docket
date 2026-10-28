@@ -160,33 +160,23 @@ pub fn complete_task_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
         rusqlite::params![now, now, id],
     )?;
 
-    let recurrence_rule: Option<String> = tx
+    let (recurrence_rule, due_date, parent_id): (Option<String>, Option<String>, Option<i64>) = tx
         .query_row(
-            "SELECT recurrence_rule FROM tasks WHERE id=?1",
+            "SELECT recurrence_rule, due_date, recurrence_parent_id FROM tasks WHERE id=?1",
             rusqlite::params![id],
-            |row| row.get(0),
-        )
-        .ok()
-        .flatten();
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
 
     if let Some(rule_json) = recurrence_rule {
         if let Some(rule) = crate::recurrence::parse_rule(&rule_json) {
-            let due_date: Option<String> = tx
-                .query_row(
-                    "SELECT due_date FROM tasks WHERE id=?1",
-                    rusqlite::params![id],
-                    |row| row.get(0),
-                )
-                .ok()
-                .flatten();
-
-            let base_date = due_date.unwrap_or(now.clone());
+            let root_id = parent_id.unwrap_or(id);
+            let base_date = due_date.unwrap_or_else(crate::time::local_today_date);
             if let Some(next_date) = crate::recurrence::next_occurrence(&rule, &base_date) {
                 let should_create = if let Some(ref end_count) = rule.end_count {
                     let existing: i64 = tx
                         .query_row(
                             "SELECT COUNT(*) FROM tasks WHERE recurrence_parent_id=?1 OR id=?1",
-                            rusqlite::params![id],
+                            rusqlite::params![root_id],
                             |row| row.get(0),
                         )
                         .unwrap_or(0);
@@ -200,7 +190,18 @@ pub fn complete_task_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
                         "INSERT INTO tasks (title, description, priority, due_date, category_id, recurrence_rule, estimated_minutes, recurrence_parent_id, created_at, updated_at, status)
                          SELECT title, description, priority, ?1, category_id, recurrence_rule, estimated_minutes, ?2, ?3, ?4, 'active'
                          FROM tasks WHERE id=?5",
-                        rusqlite::params![next_date, id, now, now, id],
+                        rusqlite::params![next_date, root_id, now, now, id],
+                    )?;
+                    let new_id = tx.last_insert_rowid();
+                    tx.execute(
+                        "INSERT INTO task_tags (task_id, tag_id)
+                         SELECT ?1, tag_id FROM task_tags WHERE task_id=?2",
+                        rusqlite::params![new_id, id],
+                    )?;
+                    tx.execute(
+                        "INSERT INTO subtasks (task_id, title, status, sort_order, created_at)
+                         SELECT ?1, title, 'pending', sort_order, ?2 FROM subtasks WHERE task_id=?3",
+                        rusqlite::params![new_id, now, id],
                     )?;
                 }
             }
