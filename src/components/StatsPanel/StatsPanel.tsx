@@ -9,6 +9,7 @@ import {
   clearFilters,
   getCalendarMonth,
 } from '../../stores'
+import { localDateString } from '../../utils/date'
 
 const WEEKDAYS = ['一','二','三','四','五','六','日']
 
@@ -42,11 +43,7 @@ const StatsPanel: Component = () => {
     return Math.max(...h.map(e => e.minutes), 1)
   }
 
-  const today = new Date()
-  const isToday = (ds: string) => {
-    const d = new Date(ds)
-    return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate()
-  }
+  const isToday = (ds: string) => ds === localDateString()
 
   const days = () => miniCalData() ?? []
   const offset = days().length > 0 ? (new Date(days()[0].date + 'T00:00:00').getDay() + 6) % 7 : 0

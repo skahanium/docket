@@ -2,6 +2,7 @@ import { type Component } from 'solid-js'
 import styles from './TaskCard.module.css'
 import Checkbox from '../shared/Checkbox'
 import type { TaskSummary } from '../../bindings/types'
+import { localDateString } from '../../utils/date'
 
 interface Props {
   task: TaskSummary
@@ -17,7 +18,7 @@ const TaskCard: Component<Props> = (props) => {
   const completed = t.status === 'completed'
   const hasProgress = t.subtasks_progress.total > 0
   const pct = hasProgress ? Math.round((t.subtasks_progress.completed / t.subtasks_progress.total) * 100) : 0
-  const overdue = !completed && !!t.due_date && t.due_date < new Date().toISOString().slice(0, 10)
+  const overdue = !completed && !!t.due_date && t.due_date < localDateString()
   const showChk = props.showCheckbox !== false
 
   const handleDragStart = (e: DragEvent) => {

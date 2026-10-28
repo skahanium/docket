@@ -1,7 +1,6 @@
 use crate::commands::analytics::{focus_heatmap_on_conn, weekly_accuracy_on_conn, FocusHeatmapEntry, WeeklyAccuracy};
 use crate::db::{lock_conn, DbState};
 use crate::models::{DailyCount, Statistics};
-use chrono::Utc;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -15,7 +14,8 @@ pub struct StatsPanelData {
 }
 
 pub fn statistics_on_conn(conn: &Connection) -> Result<Statistics, String> {
-    let today = Utc::now().format("%Y-%m-%d").to_string();
+    let today = crate::time::local_today_date();
+    let overdue_pred = crate::agenda::overdue_active_predicate("", "?1");
 
     let today_count: i32 = conn
         .query_row(
@@ -27,31 +27,27 @@ pub fn statistics_on_conn(conn: &Connection) -> Result<Statistics, String> {
 
     let overdue_count: i32 = conn
         .query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status='active' AND due_date IS NOT NULL AND due_date < ?1",
+            &format!("SELECT COUNT(*) FROM tasks WHERE status='active' AND {overdue_pred}"),
             rusqlite::params![today],
             |row| row.get(0),
         )
         .unwrap_or(0);
 
-    let week_start = Utc::now()
-        .date_naive()
-        .checked_sub_days(chrono::Days::new(6))
-        .unwrap()
-        .format("%Y-%m-%d")
-        .to_string();
+    let (week_start, tomorrow) = crate::agenda::local_last_n_days_window(7);
+    let (range_start, range_end) = crate::agenda::local_range_bounds(week_start, tomorrow)?;
 
     let completed_week: i32 = conn
         .query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status='completed' AND completed_at >= ?1",
-            rusqlite::params![week_start],
+            "SELECT COUNT(*) FROM tasks WHERE status='completed' AND completed_at >= ?1 AND completed_at < ?2",
+            rusqlite::params![range_start, range_end],
             |row| row.get(0),
         )
         .unwrap_or(0);
 
     let total_week = conn
         .query_row(
-            "SELECT COUNT(*) FROM tasks WHERE created_at >= ?1 OR (completed_at >= ?1)",
-            rusqlite::params![week_start],
+            "SELECT COUNT(*) FROM tasks WHERE (created_at >= ?1 AND created_at < ?2) OR (completed_at >= ?1 AND completed_at < ?2)",
+            rusqlite::params![range_start, range_end],
             |row| row.get(0),
         )
         .unwrap_or(0);
@@ -62,42 +58,32 @@ pub fn statistics_on_conn(conn: &Connection) -> Result<Statistics, String> {
         0.0
     };
 
-    let week_start_date = Utc::now()
-        .date_naive()
-        .checked_sub_days(chrono::Days::new(6))
-        .unwrap();
-    let week_end_date = Utc::now().date_naive();
-    let ws = week_start_date.format("%Y-%m-%d").to_string();
-    let we = week_end_date.succ_opt().unwrap().format("%Y-%m-%d").to_string();
-
     let mut daily_map: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT DATE(completed_at) AS d, COUNT(*)
-             FROM tasks
-             WHERE status='completed' AND completed_at >= ?1 AND completed_at < ?2
-             GROUP BY d",
+            "SELECT completed_at FROM tasks
+             WHERE status='completed' AND completed_at >= ?1 AND completed_at < ?2",
         ).map_err(|e| e.to_string())?;
-        for row in stmt.query_map(rusqlite::params![ws, we], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, i32>(1)?))
+        for row in stmt.query_map(rusqlite::params![range_start, range_end], |r| {
+            r.get::<_, String>(0)
         }).map_err(|e| e.to_string())? {
-            let (d, c) = row.map_err(|e| e.to_string())?;
-            daily_map.insert(d, c);
+            let ts = row.map_err(|e| e.to_string())?;
+            if let Some(d) = crate::agenda::rfc3339_to_local_date(&ts) {
+                *daily_map.entry(d).or_insert(0) += 1;
+            }
         }
     }
 
     let mut daily_counts = vec![];
-    for i in (0..7).rev() {
-        let d = Utc::now()
-            .date_naive()
-            .checked_sub_days(chrono::Days::new(i as u64))
-            .unwrap();
-        let date_str = d.format("%Y-%m-%d").to_string();
+    let mut cursor = week_start;
+    while cursor < tomorrow {
+        let date_str = crate::agenda::format_calendar_date(cursor);
         let completed = *daily_map.get(&date_str).unwrap_or(&0);
         daily_counts.push(DailyCount {
             date: date_str,
             completed,
         });
+        cursor = cursor.succ_opt().ok_or_else(|| "date overflow".to_string())?;
     }
 
     Ok(Statistics {

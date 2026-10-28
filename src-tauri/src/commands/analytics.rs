@@ -77,8 +77,9 @@ pub struct ReviewTask {
 pub fn weekly_accuracy_on_conn(
     conn: &rusqlite::Connection,
 ) -> Result<WeeklyAccuracy, String> {
-    let week_ago = (chrono::Utc::now() - chrono::Duration::days(6)).format("%Y-%m-%d").to_string();
-    let tomorrow = chrono::Utc::now().date_naive().succ_opt().unwrap().format("%Y-%m-%d").to_string();
+    let (week_start, tomorrow_d) = crate::agenda::local_last_n_days_window(7);
+    let week_ago = crate::agenda::format_calendar_date(week_start);
+    let tomorrow = crate::agenda::format_calendar_date(tomorrow_d);
 
     let mut estimated_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     {
@@ -141,9 +142,9 @@ pub fn weekly_accuracy_on_conn(
     let mut total_estimated = 0i64;
     let mut total_actual = 0i64;
 
-    for i in (0..7).rev() {
-        let d = chrono::Utc::now() - chrono::Duration::days(i);
-        let date = d.format("%Y-%m-%d").to_string();
+    let mut cursor = week_start;
+    while cursor < tomorrow_d {
+        let date = crate::agenda::format_calendar_date(cursor);
         let estimated = *estimated_map.get(&date).unwrap_or(&0);
         let actual = *actual_map.get(&date).unwrap_or(&0);
         let completed = *completed_map.get(&date).unwrap_or(&0);
@@ -159,6 +160,7 @@ pub fn weekly_accuracy_on_conn(
 
         total_estimated += estimated;
         total_actual += actual;
+        cursor = cursor.succ_opt().ok_or_else(|| "date overflow".to_string())?;
     }
 
     let accuracy = if total_estimated > 0 {
@@ -177,24 +179,25 @@ pub fn focus_heatmap_on_conn(
     conn: &rusqlite::Connection,
     days: i32,
 ) -> Result<Vec<FocusHeatmapEntry>, String> {
-    let since = (chrono::Utc::now() - chrono::Duration::days(days as i64))
-        .format("%Y-%m-%d")
-        .to_string();
+    let (window_start, tomorrow) = crate::agenda::local_last_n_days_window(days);
+    let (range_start, range_end) = crate::agenda::local_range_bounds(window_start, tomorrow)?;
 
     let mut hour_map: std::collections::HashMap<i32, (i64, i64)> = std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT CAST(strftime('%H', started_at) AS INTEGER) AS h,
-                    COALESCE(SUM(duration_minutes), 0), COUNT(*)
+            "SELECT started_at, COALESCE(duration_minutes, 0)
              FROM focus_sessions
-             WHERE completed=1 AND DATE(started_at) >= ?1
-             GROUP BY h",
+             WHERE completed=1 AND started_at >= ?1 AND started_at < ?2",
         ).map_err(|e| e.to_string())?;
-        for row in stmt.query_map([&since], |r| {
-            Ok((r.get::<_, i32>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?))
+        for row in stmt.query_map([&range_start, &range_end], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
         }).map_err(|e| e.to_string())? {
-            let (h, m, s) = row.map_err(|e| e.to_string())?;
-            hour_map.insert(h, (m, s));
+            let (started_at, minutes) = row.map_err(|e| e.to_string())?;
+            if let Some(h) = crate::agenda::rfc3339_to_local_hour(&started_at) {
+                let entry = hour_map.entry(h).or_insert((0, 0));
+                entry.0 += minutes;
+                entry.1 += 1;
+            }
         }
     }
 
@@ -214,7 +217,8 @@ pub fn focus_heatmap_on_conn(
 #[tauri::command]
 pub fn get_workload_summary(state: State<DbState>, date: Option<String>) -> Result<WorkloadSummary, String> {
     let conn = lock_conn(&state)?;
-    let date = date.unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%d").to_string());
+    let date = date.unwrap_or_else(crate::time::local_today_date);
+    let (day_start, day_end) = crate::agenda::local_day_bounds(&date)?;
 
     let is_workday = crate::db::is_workday(&conn, &date);
 
@@ -231,8 +235,8 @@ pub fn get_workload_summary(state: State<DbState>, date: Option<String>) -> Resu
     ).map_err(|e| e.to_string())?;
 
     let actual_focus: i64 = conn.query_row(
-        "SELECT COALESCE(SUM(duration_minutes), 0) FROM focus_sessions WHERE DATE(started_at)=?1 AND completed=1",
-        [&date],
+        "SELECT COALESCE(SUM(duration_minutes), 0) FROM focus_sessions WHERE completed=1 AND started_at >= ?1 AND started_at < ?2",
+        [&day_start, &day_end],
         |r| r.get(0),
     ).map_err(|e| e.to_string())?;
 
@@ -273,7 +277,8 @@ pub fn get_workload_summary(state: State<DbState>, date: Option<String>) -> Resu
 #[tauri::command]
 pub fn get_daily_review(state: State<DbState>, date: Option<String>) -> Result<DailyReview, String> {
     let conn = lock_conn(&state)?;
-    let date = date.unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%d").to_string());
+    let date = date.unwrap_or_else(crate::time::local_today_date);
+    let (day_start, day_end) = crate::agenda::local_day_bounds(&date)?;
 
     let is_workday = crate::db::is_workday(&conn, &date);
 
@@ -320,8 +325,8 @@ pub fn get_daily_review(state: State<DbState>, date: Option<String>) -> Result<D
     // Focus stats
     let (focus_minutes, focus_sessions): (i64, i64) = conn.query_row(
         "SELECT COALESCE(SUM(duration_minutes), 0), COUNT(*)
-         FROM focus_sessions WHERE DATE(started_at)=?1 AND completed=1",
-        [&date],
+         FROM focus_sessions WHERE completed=1 AND started_at >= ?1 AND started_at < ?2",
+        [&day_start, &day_end],
         |r| Ok((r.get(0)?, r.get(1)?)),
     ).unwrap_or((0, 0));
 

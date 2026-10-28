@@ -109,7 +109,7 @@ fn calendar_month_reflects_due_dates() {
 fn desktop_panel_snapshot_lists_today_and_overdue() {
     let db = in_memory_db();
     let conn = lock_conn(&db).expect("lock");
-    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let today = app_lib::local_today_date();
 
     create_task_on_conn(
         &conn,

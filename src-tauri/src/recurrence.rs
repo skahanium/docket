@@ -1,5 +1,5 @@
 use crate::models::RecurrenceRule;
-use chrono::{Datelike, Days, NaiveDate, Utc, Weekday};
+use chrono::{Datelike, Days, NaiveDate, Weekday};
 
 fn parse_date(s: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
@@ -26,7 +26,7 @@ pub fn parse_rule(json: &str) -> Option<RecurrenceRule> {
 }
 
 pub fn next_occurrence(rule: &RecurrenceRule, current_date: &str) -> Option<String> {
-    let today = Utc::now().date_naive();
+    let today = crate::time::local_today_naive();
     let current = parse_date(current_date).unwrap_or(today);
 
     if let Some(next) = next_occurrence_from(rule, current) {

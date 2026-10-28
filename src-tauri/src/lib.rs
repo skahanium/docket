@@ -1,3 +1,4 @@
+pub mod agenda;
 mod app_windows;
 pub mod bindings_export;
 pub mod commands;
@@ -9,6 +10,7 @@ mod scheduler;
 mod time;
 
 pub use error::AppError;
+pub use time::local_today_date;
 pub mod testing;
 
 use rusqlite::Connection;

@@ -13,6 +13,7 @@ import {
   pushToast,
 } from '../../stores'
 import CalendarDay from '../CalendarDay/CalendarDay'
+import { localDateString } from '../../utils/date'
 
 const WEEKDAYS = ['一','二','三','四','五','六','日']
 
@@ -24,11 +25,7 @@ const Calendar: Component<Props> = (props) => {
   const prev = () => calendarMonth() === 1 ? (setCalendarYear(y => y - 1), setCalendarMonth(12)) : setCalendarMonth(m => m - 1)
   const next = () => calendarMonth() === 12 ? (setCalendarYear(y => y + 1), setCalendarMonth(1)) : setCalendarMonth(m => m + 1)
 
-  const today = new Date()
-  const isToday = (ds: string) => {
-    const d = new Date(ds)
-    return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate()
-  }
+  const isToday = (ds: string) => ds === localDateString()
 
   const days = () => calendarData() ?? []
   const offset = days().length > 0 ? (new Date(days()[0].date + 'T00:00:00').getDay() + 6) % 7 : 0

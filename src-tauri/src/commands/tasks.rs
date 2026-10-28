@@ -368,20 +368,14 @@ pub fn list_tasks_on_conn(
     }
     if filters.today_view.unwrap_or(false) {
         let today = crate::time::local_today_date();
-        conditions.push(format!(
-            "(t.due_date = ?{} OR (t.priority >= 2 AND (t.due_date IS NULL OR t.due_date >= ?{})))",
-            params.len() + 1,
-            params.len() + 2
-        ));
-        params.push(Box::new(today.clone()));
+        let ph = format!("?{}", params.len() + 1);
+        conditions.push(crate::agenda::today_active_predicate("t", &ph));
         params.push(Box::new(today));
     }
     if filters.overdue_view.unwrap_or(false) {
         let today = crate::time::local_today_date();
-        conditions.push(format!(
-            "t.due_date IS NOT NULL AND t.due_date < ?{}",
-            params.len() + 1
-        ));
+        let ph = format!("?{}", params.len() + 1);
+        conditions.push(crate::agenda::overdue_active_predicate("t", &ph));
         params.push(Box::new(today));
     }
 

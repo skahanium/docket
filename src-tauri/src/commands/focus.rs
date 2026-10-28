@@ -149,17 +149,19 @@ pub fn get_task_focus_history(state: State<DbState>, task_id: i64) -> Result<Vec
 pub fn get_focus_summary(state: State<DbState>, date: String) -> Result<FocusSummary, String> {
     let conn = lock_conn(&state)?;
 
+    let (day_start, day_end) = crate::agenda::local_day_bounds(&date)?;
+
     let total_minutes: i64 = conn.query_row(
         "SELECT COALESCE(SUM(duration_minutes), 0) FROM focus_sessions
-         WHERE DATE(started_at) = ?1 AND completed = 1",
-        [&date],
+         WHERE completed = 1 AND started_at >= ?1 AND started_at < ?2",
+        [&day_start, &day_end],
         |row| row.get(0),
     ).map_err(|e| e.to_string())?;
 
     let session_count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM focus_sessions
-         WHERE DATE(started_at) = ?1 AND completed = 1",
-        [&date],
+         WHERE completed = 1 AND started_at >= ?1 AND started_at < ?2",
+        [&day_start, &day_end],
         |row| row.get(0),
     ).map_err(|e| e.to_string())?;
 
@@ -167,11 +169,11 @@ pub fn get_focus_summary(state: State<DbState>, date: String) -> Result<FocusSum
         "SELECT f.id, f.task_id, t.title, f.started_at, f.ended_at, f.duration_minutes, f.completed
          FROM focus_sessions f
          LEFT JOIN tasks t ON f.task_id = t.id
-         WHERE DATE(f.started_at) = ?1
+         WHERE f.started_at >= ?1 AND f.started_at < ?2
          ORDER BY f.started_at DESC",
     ).map_err(|e| e.to_string())?;
 
-    let rows = stmt.query_map([&date], |row| {
+    let rows = stmt.query_map([&day_start, &day_end], |row| {
         Ok(FocusSession {
             id: row.get(0)?,
             task_id: row.get(1)?,

@@ -1,8 +1,15 @@
 //! HH:MM clock helpers shared by schedule and analytics commands.
 
+use chrono::NaiveDate;
+
+/// Local calendar date as a `NaiveDate`.
+pub fn local_today_naive() -> NaiveDate {
+    chrono::Local::now().date_naive()
+}
+
 /// Local calendar date as `YYYY-MM-DD` (used for "today" / overdue boundaries).
 pub fn local_today_date() -> String {
-    chrono::Local::now().format("%Y-%m-%d").to_string()
+    local_today_naive().format("%Y-%m-%d").to_string()
 }
 
 /// Parse `"HH:MM"` into minutes since midnight.

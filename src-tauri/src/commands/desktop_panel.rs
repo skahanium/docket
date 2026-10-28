@@ -35,21 +35,23 @@ fn list_panel_rows(
     today: &str,
     overdue_only: bool,
 ) -> Result<Vec<TaskPanelRow>, String> {
-    let sql = if overdue_only {
-        "SELECT id, title, due_date, priority FROM tasks
-         WHERE status = ?1 AND due_date IS NOT NULL AND due_date < ?2
-         ORDER BY due_date ASC, priority DESC"
+    let extra = if overdue_only {
+        crate::agenda::overdue_active_predicate("", "?2")
     } else {
-        "SELECT id, title, due_date, priority FROM tasks
-         WHERE status = ?1
-           AND (
-             due_date = ?2
-             OR (priority >= 2 AND (due_date IS NULL OR due_date >= ?2))
-           )
-         ORDER BY priority DESC, due_date ASC, title ASC"
+        crate::agenda::today_active_predicate("", "?2")
     };
+    let order = if overdue_only {
+        "due_date ASC, priority DESC"
+    } else {
+        "priority DESC, due_date ASC, title ASC"
+    };
+    let sql = format!(
+        "SELECT id, title, due_date, priority FROM tasks
+         WHERE status = ?1 AND {extra}
+         ORDER BY {order}"
+    );
 
-    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map(rusqlite::params![ACTIVE, today], |row| {
             Ok(TaskPanelRow {
@@ -78,22 +80,18 @@ pub fn snapshot_on_conn(conn: &Connection) -> Result<DesktopPanelSnapshot, Strin
 /// Lightweight counts for the notification scheduler (no tags/subtasks).
 pub fn panel_counts_on_conn(conn: &Connection) -> Result<(usize, usize), String> {
     let today_key = crate::time::local_today_date();
+    let today_pred = crate::agenda::today_active_predicate("", "?2");
+    let overdue_pred = crate::agenda::overdue_active_predicate("", "?2");
     let today_n: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM tasks
-             WHERE status = ?1
-               AND (
-                 due_date = ?2
-                 OR (priority >= 2 AND (due_date IS NULL OR due_date >= ?2))
-               )",
+            &format!("SELECT COUNT(*) FROM tasks WHERE status = ?1 AND {today_pred}"),
             rusqlite::params![ACTIVE, today_key],
             |row| row.get(0),
         )
         .map_err(|e| e.to_string())?;
     let overdue_n: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM tasks
-             WHERE status = ?1 AND due_date IS NOT NULL AND due_date < ?2",
+            &format!("SELECT COUNT(*) FROM tasks WHERE status = ?1 AND {overdue_pred}"),
             rusqlite::params![ACTIVE, today_key],
             |row| row.get(0),
         )

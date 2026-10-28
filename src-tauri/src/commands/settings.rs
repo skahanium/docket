@@ -174,7 +174,7 @@ pub fn fetch_holidays_online(
     if !user_confirmed {
         return Err("需要用户确认后才能访问节假日 API".into());
     }
-    let current_year = chrono::Utc::now().format("%Y").to_string().parse::<i32>().unwrap_or(2026);
+    let current_year = chrono::Local::now().format("%Y").to_string().parse::<i32>().unwrap_or(2026);
     let target_year = year.unwrap_or(current_year);
 
     let url = format!("https://timor.tech/api/holiday/year/{}", target_year);

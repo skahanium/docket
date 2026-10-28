@@ -20,4 +20,24 @@ describe('date utils', () => {
     expect(d.getMonth()).toBe(4)
     expect(d.getDate()).toBe(22)
   })
+
+  it('localDateString is local calendar YYYY-MM-DD, not toISOString UTC', () => {
+    const morning = new Date(2026, 5, 1, 0, 30, 0)
+    expect(localDateString(morning)).toBe('2026-06-01')
+    const evening = new Date(2026, 5, 1, 23, 0, 0)
+    expect(localDateString(evening)).toBe('2026-06-01')
+    if (morning.getTimezoneOffset() < 0) {
+      expect(localDateString(morning)).not.toBe(morning.toISOString().slice(0, 10))
+    }
+    if (evening.getTimezoneOffset() > 0) {
+      expect(localDateString(evening)).not.toBe(evening.toISOString().slice(0, 10))
+    }
+  })
+
+  it('isToday compares date strings without new Date(ds)', () => {
+    const today = localDateString()
+    expect(today === localDateString(new Date())).toBe(true)
+    const ds = '2026-06-01'
+    expect(ds === localDateString(parseLocalDate(ds))).toBe(true)
+  })
 })
