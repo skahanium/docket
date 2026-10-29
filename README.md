@@ -116,9 +116,9 @@ src/
 | 任务 | `list_tasks`, `create_task`, … | 列表为批量查询，无 N+1 |
 | 议程 | `list_agenda` | 今日/逾期：任务谓词 ∪ 各进行中事项的当前步 |
 | 模板 | `list_playbooks`, `create_playbook`, `set_playbook_steps` | 实例化时拷贝步骤；创建后不能改 `playbook_id` |
-| 事项 | `list_matters`, `create_matter`, `create_blank_matter`, `complete_matter_step`, `skip_matter_step`, `reopen_matter_step` | 与 tasks 分表；一事一步 |
-| 依据 | `add_step_link`, `remove_step_link`, `open_step_link`, `reveal_step_link`, `pick_evidence_path` | 只存绝对路径；dialog 选路径，opener 打开 |
-| 指标 | `list_cadences`, `create_cadence`, `get_cadence_progress` | 查询办结事项，不是累加器；不进今日 |
+| 事项 | `list_matters`, `create_matter`, `create_blank_matter`, `update_matter`, `update_matter_step`, `complete_matter_step`, `skip_matter_step`, `reopen_matter_step` | 与 tasks 分表；一事一步 |
+| 依据 | `add_step_link`, `remove_step_link`, `replace_step_link`, `open_step_link`, `reveal_step_link`, `pick_evidence_path` | 只存绝对路径；dialog 选路径，opener 打开 |
+| 指标 | `list_cadences`, `create_cadence`, `update_cadence`, `get_cadence_progress` | 查询办结事项，不是累加器；不进今日 |
 | 统计 | `get_stats_panel` | 一次返回统计卡片、周预估/实际、专注热力图 |
 | 设置 | `get_settings`, `get_notification_settings`, `get_database_path`, … | 设置页；节假日同步需用户确认（S2） |
 | 桌面面板 | `get_desktop_panel_snapshot`, `focus_task_from_panel`, `focus_matter_from_panel` | 托盘切换显示；只读调度清单 |

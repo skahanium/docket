@@ -17,6 +17,7 @@
   background: var(--bg-elevated); font-family: inherit; font-size: 14px; color: var(--text-main); cursor: pointer;
 }
 .btn:hover { background: var(--bg-hover); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btnPrimary { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
 .btnGhost { background: transparent; }
 .card {

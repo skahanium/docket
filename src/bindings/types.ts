@@ -10,6 +10,7 @@ import type {
   ListTasksFilters as GeneratedListTasksFilters,
   UpdateCadenceInput as GeneratedUpdateCadenceInput,
   UpdateMatterInput as GeneratedUpdateMatterInput,
+  UpdateMatterStepInput as GeneratedUpdateMatterStepInput,
   UpdatePlaybookInput as GeneratedUpdatePlaybookInput,
   UpdateTaskInput as GeneratedUpdateTaskInput,
 } from './generated'
@@ -65,6 +66,7 @@ export type CreateTaskInput = Pick<GeneratedCreateTaskInput, 'title'> &
 export type ListTasksFilters = Partial<GeneratedListTasksFilters>
 
 export type UpdateMatterInput = Partial<GeneratedUpdateMatterInput>
+export type UpdateMatterStepInput = Partial<GeneratedUpdateMatterStepInput>
 export type UpdatePlaybookInput = Partial<GeneratedUpdatePlaybookInput>
 export type UpdateCadenceInput = Partial<GeneratedUpdateCadenceInput>
 export type AddMatterStepInput = Pick<GeneratedAddMatterStepInput, 'title'> &

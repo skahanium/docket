@@ -151,7 +151,7 @@ fn list_current_step_agenda(
     overdue_only: bool,
 ) -> AppResult<Vec<AgendaItem>> {
     let overdue_clause = if overdue_only {
-        "AND (s.due_date IS NOT NULL AND s.due_date < ?2 OR m.due_date IS NOT NULL AND m.due_date < ?2)"
+        "AND ((s.due_date IS NOT NULL AND s.due_date < ?2) OR (m.due_date IS NOT NULL AND m.due_date < ?2))"
     } else {
         ""
     };
@@ -289,6 +289,58 @@ mod tests {
         let after = list_agenda_on_conn(&conn, "today").unwrap();
         assert!(after.iter().any(|i| i.title == "下一步"));
         assert!(!after.iter().any(|i| i.title == "当前步"));
+    }
+
+    #[test]
+    fn overdue_agenda_uses_matter_or_current_step_due() {
+        use crate::db;
+        use crate::matter::{current_pending_step, update_matter_on_conn, update_matter_step_on_conn};
+        use crate::models::PlaybookStepInput;
+        use crate::playbook::{
+            create_playbook_on_conn, instantiate_matter_on_conn, set_playbook_steps_on_conn,
+        };
+        use rusqlite::Connection;
+
+        let conn = Connection::open_in_memory().unwrap();
+        db::init_db(&conn).unwrap();
+        let pb = create_playbook_on_conn(&conn, "逾期模板").unwrap();
+        set_playbook_steps_on_conn(
+            &conn,
+            pb,
+            &[PlaybookStepInput {
+                title: "当前步".into(),
+                optional: false,
+                evidence_required: false,
+                estimated_minutes: None,
+            }],
+        )
+        .unwrap();
+        let today = crate::time::local_today_naive();
+        let yesterday = format_calendar_date(today - chrono::Days::new(1));
+        let tomorrow = format_calendar_date(today + chrono::Days::new(1));
+        let mid = instantiate_matter_on_conn(&conn, pb, "逾期事项", 2, None, Some(&yesterday)).unwrap();
+
+        let overdue = list_agenda_on_conn(&conn, "overdue").unwrap();
+        assert!(overdue.iter().any(|i| i.kind == AGENDA_KIND_MATTER_STEP && i.matter_id == Some(mid)));
+
+        update_matter_on_conn(&conn, mid, None, None, None, Some(Some(tomorrow.as_str()))).unwrap();
+        let later = list_agenda_on_conn(&conn, "overdue").unwrap();
+        assert!(!later.iter().any(|i| i.matter_id == Some(mid)));
+
+        update_matter_on_conn(&conn, mid, None, None, None, Some(None)).unwrap();
+        let step = current_pending_step(&conn, mid).unwrap().unwrap();
+        update_matter_step_on_conn(&conn, step.id, Some(Some(yesterday.as_str()))).unwrap();
+        let by_step = list_agenda_on_conn(&conn, "overdue").unwrap();
+        assert!(by_step.iter().any(|i| i.kind == AGENDA_KIND_MATTER_STEP && i.matter_id == Some(mid)));
+
+        update_matter_on_conn(&conn, mid, None, None, None, Some(Some(tomorrow.as_str()))).unwrap();
+        let step_over_matter = list_agenda_on_conn(&conn, "overdue").unwrap();
+        assert!(
+            step_over_matter
+                .iter()
+                .any(|i| i.kind == AGENDA_KIND_MATTER_STEP && i.matter_id == Some(mid)),
+            "事项 due 在未来时，当前步昨日 due 仍应逾期（OR，不是 AND）"
+        );
     }
 
     #[test]

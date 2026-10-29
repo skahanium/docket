@@ -49,8 +49,8 @@
 ## 主要 IPC
 
 - 模板：`list_playbooks`, `create_playbook`, `update_playbook`, `set_playbook_steps`
-- 事项：`list_matters`, `create_matter`, `create_blank_matter`, `get_matter`, `complete_matter_step`, `skip_matter_step`, `reopen_matter_step`, `add_matter_step`
-- 依据：`add_step_link`, `remove_step_link`, `open_step_link`, `reveal_step_link`
+- 事项：`list_matters`, `create_matter`, `create_blank_matter`, `get_matter`, `update_matter`, `update_matter_step`, `complete_matter_step`, `skip_matter_step`, `reopen_matter_step`, `add_matter_step`
+- 依据：`add_step_link`, `remove_step_link`, `replace_step_link`, `open_step_link`, `reveal_step_link`
 - 议程：`list_agenda`
 - 指标：`list_cadences`, `create_cadence`, `update_cadence`, `get_cadence_progress`
 

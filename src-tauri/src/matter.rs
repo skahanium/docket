@@ -122,6 +122,31 @@ pub fn add_matter_step_on_conn(
     Ok(id)
 }
 
+pub fn update_matter_step_on_conn(
+    conn: &Connection,
+    step_id: i64,
+    due_date: Option<Option<&str>>,
+) -> AppResult<()> {
+    let n: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM matter_steps WHERE id=?1",
+        params![step_id],
+        |r| r.get(0),
+    )?;
+    if n == 0 {
+        return Err(AppError::message(format!("步骤不存在 (id={step_id})")));
+    }
+    if let Some(due) = due_date {
+        if let Some(d) = due {
+            crate::agenda::parse_calendar_date(d).map_err(AppError::InvalidDate)?;
+        }
+        conn.execute(
+            "UPDATE matter_steps SET due_date=?1 WHERE id=?2",
+            params![due, step_id],
+        )?;
+    }
+    Ok(())
+}
+
 pub fn current_pending_step(conn: &Connection, matter_id: i64) -> AppResult<Option<MatterStepBrief>> {
     let mut stmt = conn.prepare(
         "SELECT id, title, sort_order, evidence_required, status, due_date

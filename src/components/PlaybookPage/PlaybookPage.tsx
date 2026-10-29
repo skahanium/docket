@@ -64,6 +64,20 @@ const PlaybookPage: Component = () => {
     }
   }
 
+  const moveStep = (index: number, dir: -1 | 1) => {
+    const next = [...steps()]
+    const j = index + dir
+    if (j < 0 || j >= next.length) return
+    const tmp = next[index]
+    next[index] = next[j]
+    next[j] = tmp
+    setSteps(next)
+  }
+
+  const removeStep = (index: number) => {
+    setSteps(steps().filter((_, i) => i !== index))
+  }
+
   return (
     <div class={styles.container}>
       <div class={styles.header}>
@@ -91,18 +105,25 @@ const PlaybookPage: Component = () => {
                     setSteps(next)
                   }}
                 />
-                <label class={styles.cardMeta}>
-                  <input
-                    type="checkbox"
-                    checked={step.evidence_required}
-                    onChange={(e) => {
-                      const next = [...steps()]
-                      next[i()] = { ...next[i()], evidence_required: e.currentTarget.checked }
-                      setSteps(next)
-                    }}
-                  />
-                  {' '}需要依据
-                </label>
+                <div>
+                  <label class={styles.cardMeta}>
+                    <input
+                      type="checkbox"
+                      checked={step.evidence_required}
+                      onChange={(e) => {
+                        const next = [...steps()]
+                        next[i()] = { ...next[i()], evidence_required: e.currentTarget.checked }
+                        setSteps(next)
+                      }}
+                    />
+                    {' '}需要依据
+                  </label>
+                  <div class={styles.row}>
+                    <button type="button" class={styles.btn} disabled={i() === 0} onClick={() => moveStep(i(), -1)}>上移</button>
+                    <button type="button" class={styles.btn} disabled={i() === steps().length - 1} onClick={() => moveStep(i(), 1)}>下移</button>
+                    <button type="button" class={styles.btn} onClick={() => removeStep(i())}>删除</button>
+                  </div>
+                </div>
               </div>
             )}
           </For>

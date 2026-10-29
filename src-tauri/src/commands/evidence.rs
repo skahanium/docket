@@ -1,6 +1,7 @@
 use crate::db::{lock_conn, DbState};
 use crate::evidence::{
-    add_step_link_on_conn, get_step_link_on_conn, path_exists, remove_step_link_on_conn,
+    add_step_link_on_conn, get_step_link_on_conn, path_exists, pathbuf_to_stored_path,
+    remove_step_link_on_conn, replace_step_link_on_conn,
 };
 use crate::models::MatterStepLink;
 use specta::Type;
@@ -33,6 +34,19 @@ pub fn remove_step_link(app: AppHandle, state: State<DbState>, link_id: i64) -> 
     remove_step_link_on_conn(&conn, link_id)?;
     crate::app_windows::emit_tasks_changed(&app);
     Ok(())
+}
+
+#[tauri::command]
+pub fn replace_step_link(
+    app: AppHandle,
+    state: State<DbState>,
+    link_id: i64,
+    path: String,
+) -> Result<i64, String> {
+    let conn = lock_conn(&state)?;
+    let id = replace_step_link_on_conn(&conn, link_id, &path)?;
+    crate::app_windows::emit_tasks_changed(&app);
+    Ok(id)
 }
 
 #[tauri::command]
@@ -72,7 +86,13 @@ pub fn pick_evidence_path(app: AppHandle, directory: bool) -> Result<Option<Stri
     } else {
         app.dialog().file().blocking_pick_file()
     };
-    Ok(picked.map(|p| p.to_string()))
+    match picked {
+        None => Ok(None),
+        Some(p) => {
+            let pb = p.into_path().map_err(|e| e.to_string())?;
+            Ok(Some(pathbuf_to_stored_path(pb).map_err(|e| e.to_string())?))
+        }
+    }
 }
 
 #[tauri::command]

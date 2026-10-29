@@ -431,4 +431,41 @@ mod tests {
         );
         let _ = get_matter_on_conn(&conn, mid);
     }
+
+    #[test]
+    fn blank_matter_tagged_after_create_counts_in_tag_filter() {
+        let conn = conn();
+        conn.execute("INSERT INTO tags (name) VALUES ('甲')", []).unwrap();
+        let blank = create_blank_matter_on_conn(&conn, "空白带标签", 0, None, None).unwrap();
+        crate::matter::add_matter_step_on_conn(&conn, blank, "一步", false, None, None).unwrap();
+        add_tag_to_matter_on_conn(&conn, blank, 1).unwrap();
+        finish_matter(&conn, blank);
+        let filtered = create_cadence_on_conn(&conn, "要甲", "month", None, &[], &[1]).unwrap();
+        let today = crate::time::local_today_date();
+        let p = cadence_progress_on_conn(&conn, filtered, &today).unwrap();
+        assert!(p.matching_matters.iter().any(|m| m.id == blank));
+    }
+
+    #[test]
+    fn update_cadence_opens_playbook_filter_and_changes_period() {
+        let conn = conn();
+        let pb = two_step_playbook(&conn);
+        let templated = instantiate_matter_on_conn(&conn, pb, "有模板", 0, None, None).unwrap();
+        let blank = create_blank_matter_on_conn(&conn, "空白", 0, None, None).unwrap();
+        crate::matter::add_matter_step_on_conn(&conn, blank, "一步", false, None, None).unwrap();
+        finish_matter(&conn, templated);
+        finish_matter(&conn, blank);
+        let limited = create_cadence_on_conn(&conn, "限模板", "month", None, &[pb], &[]).unwrap();
+        let today = crate::time::local_today_date();
+        let before = cadence_progress_on_conn(&conn, limited, &today).unwrap();
+        assert!(!before.matching_matters.iter().any(|m| m.id == blank));
+        update_cadence_on_conn(&conn, limited, None, Some("year"), None, Some(&[]), None).unwrap();
+        let after = cadence_progress_on_conn(&conn, limited, &today).unwrap();
+        assert!(after.matching_matters.iter().any(|m| m.id == blank));
+        let c = get_cadence_on_conn(&conn, limited).unwrap();
+        assert_eq!(c.period, "year");
+        let (s, e) = period_bounds("year", &today).unwrap();
+        assert_eq!(after.period_start, format_calendar_date(s));
+        assert_eq!(after.period_end, format_calendar_date(e));
+    }
 }

@@ -3,6 +3,7 @@ use crate::matter::{
     add_matter_step_on_conn, add_tag_to_matter_on_conn, complete_matter_step_on_conn,
     create_blank_matter_on_conn, get_matter_on_conn, list_matters_on_conn, remove_tag_from_matter_on_conn,
     reopen_matter_step_on_conn, skip_matter_step_on_conn, update_matter_on_conn,
+    update_matter_step_on_conn,
 };
 use crate::models::{MatterDetail, MatterSummary};
 use crate::playbook::instantiate_matter_on_conn;
@@ -47,6 +48,12 @@ pub struct AddMatterStepInput {
     pub due_date: Option<String>,
     #[specta(type = Option<f64>)]
     pub estimated_minutes: Option<i64>,
+}
+
+#[derive(Debug, serde::Deserialize, Type)]
+pub struct UpdateMatterStepInput {
+    pub due_date: Option<String>,
+    pub clear_due_date: Option<bool>,
 }
 
 #[tauri::command]
@@ -163,6 +170,24 @@ pub fn add_matter_step(
     )?;
     crate::app_windows::emit_tasks_changed(&app);
     Ok(id)
+}
+
+#[tauri::command]
+pub fn update_matter_step(
+    app: AppHandle,
+    state: State<DbState>,
+    step_id: i64,
+    input: UpdateMatterStepInput,
+) -> Result<(), String> {
+    let conn = lock_conn(&state)?;
+    let due = if input.clear_due_date.unwrap_or(false) {
+        Some(None)
+    } else {
+        input.due_date.as_deref().map(Some)
+    };
+    update_matter_step_on_conn(&conn, step_id, due)?;
+    crate::app_windows::emit_tasks_changed(&app);
+    Ok(())
 }
 
 #[tauri::command]

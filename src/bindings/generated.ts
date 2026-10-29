@@ -415,6 +415,11 @@ export type UpdateMatterInput = {
 	clear_due_date: boolean | null,
 };
 
+export type UpdateMatterStepInput = {
+	due_date: string | null,
+	clear_due_date: boolean | null,
+};
+
 export type UpdatePlaybookInput = {
 	title: string | null,
 	archived: boolean | null,

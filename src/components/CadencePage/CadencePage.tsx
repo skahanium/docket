@@ -5,8 +5,10 @@ import {
   playbooks,
   tags,
   createCadence,
+  updateCadence,
   getCadenceProgress,
   invalidateAfterMutation,
+  taskMutationEpoch,
   pushToast,
   selectMatter,
 } from '../../stores'
@@ -18,6 +20,8 @@ const PERIOD_LABEL: Record<string, string> = {
   year: '每年',
 }
 
+const idsOf = (ids: (number | null)[]) => ids.filter((id): id is number => id != null)
+
 const CadencePage: Component = () => {
   const [title, setTitle] = createSignal('')
   const [period, setPeriod] = createSignal('month')
@@ -25,32 +29,65 @@ const CadencePage: Component = () => {
   const [pbIds, setPbIds] = createSignal<number[]>([])
   const [tagIds, setTagIds] = createSignal<number[]>([])
   const [openId, setOpenId] = createSignal<number | null>(null)
+  const [editId, setEditId] = createSignal<number | null>(null)
 
   const [progress] = createResource(
-    openId,
-    (id) => (id ? getCadenceProgress(id) : Promise.resolve(null as CadenceProgress | null)),
+    () => {
+      const id = openId()
+      return id != null ? ([id, taskMutationEpoch()] as const) : null
+    },
+    ([id]) => getCadenceProgress(id),
   )
 
   const toggle = (list: number[], id: number) =>
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
 
-  const create = async () => {
+  const resetForm = () => {
+    setEditId(null)
+    setTitle('')
+    setPeriod('month')
+    setTarget('')
+    setPbIds([])
+    setTagIds([])
+  }
+
+  const startEdit = (c: Cadence) => {
+    setEditId(c.id)
+    setTitle(c.title)
+    setPeriod(c.period)
+    setTarget(c.target_count != null ? String(c.target_count) : '')
+    setPbIds(idsOf(c.playbook_ids))
+    setTagIds(idsOf(c.tag_ids))
+  }
+
+  const submit = async () => {
     const t = title().trim()
     if (!t) return
+    const emptyTarget = !target().trim()
     try {
-      await createCadence({
-        title: t,
-        period: period(),
-        target_count: target() ? Number(target()) : null,
-        playbook_ids: pbIds(),
-        tag_ids: tagIds(),
-      })
-      setTitle('')
-      setTarget('')
-      setPbIds([])
-      setTagIds([])
+      const id = editId()
+      if (id != null) {
+        await updateCadence(id, {
+          title: t,
+          period: period(),
+          target_count: emptyTarget ? null : Number(target()),
+          clear_target_count: emptyTarget,
+          playbook_ids: pbIds(),
+          tag_ids: tagIds(),
+        })
+        pushToast('success', '指标已保存')
+      } else {
+        await createCadence({
+          title: t,
+          period: period(),
+          target_count: emptyTarget ? null : Number(target()),
+          playbook_ids: pbIds(),
+          tag_ids: tagIds(),
+        })
+        pushToast('success', '指标已创建')
+      }
+      resetForm()
       invalidateAfterMutation()
-      pushToast('success', '指标已创建')
     } catch (e) {
       pushToast('error', String(e))
     }
@@ -70,7 +107,12 @@ const CadencePage: Component = () => {
             <option value="year">每年</option>
           </select>
           <input class={styles.input} type="number" min={1} placeholder="目标（可选）" value={target()} onInput={(e) => setTarget(e.currentTarget.value)} />
-          <button class={`${styles.btn} ${styles.btnPrimary}`} disabled={!title().trim()} onClick={() => void create()}>新建</button>
+          <button class={`${styles.btn} ${styles.btnPrimary}`} disabled={!title().trim()} onClick={() => void submit()}>
+            {editId() != null ? '保存' : '新建'}
+          </button>
+          <Show when={editId() != null}>
+            <button class={styles.btn} onClick={resetForm}>取消</button>
+          </Show>
         </div>
         <p class={styles.cardMeta}>限定模板（空=不限，含空白事项）</p>
         <div class={styles.chips}>
@@ -96,7 +138,13 @@ const CadencePage: Component = () => {
 
       <For each={cadences() ?? []}>
         {(c: Cadence) => (
-          <CadenceCard cadence={c} open={openId() === c.id} onOpen={() => setOpenId(openId() === c.id ? null : c.id)} progress={openId() === c.id ? progress() : null} />
+          <CadenceCard
+            cadence={c}
+            open={openId() === c.id}
+            onOpen={() => setOpenId(openId() === c.id ? null : c.id)}
+            onEdit={() => startEdit(c)}
+            progress={openId() === c.id ? (progress() ?? null) : null}
+          />
         )}
       </For>
     </div>
@@ -107,11 +155,12 @@ const CadenceCard: Component<{
   cadence: Cadence
   open: boolean
   onOpen: () => void
+  onEdit: () => void
   progress: CadenceProgress | null | undefined
 }> = (props) => {
   const [live] = createResource(
-    () => props.cadence.id,
-    (id) => getCadenceProgress(id),
+    () => [props.cadence.id, taskMutationEpoch()] as const,
+    ([id]) => getCadenceProgress(id),
   )
   const data = () => props.progress ?? live()
   const pct = () => {
@@ -133,6 +182,15 @@ const CadenceCard: Component<{
       <Show when={props.cadence.target_count}>
         <div class={styles.progress}><div class={styles.progressFill} style={{ width: `${pct()}%` }} /></div>
       </Show>
+      <button
+        class={styles.btn}
+        onClick={(e) => {
+          e.stopPropagation()
+          props.onEdit()
+        }}
+      >
+        编辑
+      </button>
       <Show when={props.open && data()}>
         <div class={styles.stepList} onClick={(e) => e.stopPropagation()}>
           <Show when={data()!.matching_matters.length === 0}>

@@ -9,6 +9,10 @@ export function removeStepLink(linkId: number): Promise<void> {
   return invoke<void>('remove_step_link', { linkId })
 }
 
+export function replaceStepLink(linkId: number, path: string): Promise<number> {
+  return invoke<number>('replace_step_link', { linkId, path })
+}
+
 export function openStepLink(linkId: number): Promise<void> {
   return invoke<void>('open_step_link', { linkId })
 }

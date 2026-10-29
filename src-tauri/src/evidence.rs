@@ -4,7 +4,7 @@ use crate::db::link_kind;
 use crate::error::{AppError, AppResult};
 use crate::models::MatterStepLink;
 use rusqlite::{params, Connection};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub fn normalize_path(path: &str) -> AppResult<String> {
     let p = path.trim();
@@ -15,6 +15,10 @@ pub fn normalize_path(path: &str) -> AppResult<String> {
         return Err(AppError::message("请使用绝对路径"));
     }
     Ok(p.to_string())
+}
+
+pub fn pathbuf_to_stored_path(path: PathBuf) -> AppResult<String> {
+    normalize_path(&path.to_string_lossy())
 }
 
 pub fn normalize_kind(kind: &str) -> AppResult<String> {
@@ -55,6 +59,28 @@ pub fn remove_step_link_on_conn(conn: &Connection, link_id: i64) -> AppResult<()
         return Err(AppError::message("依据不存在"));
     }
     Ok(())
+}
+
+pub fn replace_step_link_on_conn(conn: &Connection, link_id: i64, path: &str) -> AppResult<i64> {
+    let path = normalize_path(path)?;
+    let tx = conn.unchecked_transaction()?;
+    let old = get_step_link_on_conn(&tx, link_id)?;
+    let n = tx.execute(
+        "DELETE FROM matter_step_links WHERE id=?1",
+        params![link_id],
+    )?;
+    if n == 0 {
+        return Err(AppError::message("依据不存在"));
+    }
+    let now = chrono::Utc::now().to_rfc3339();
+    tx.execute(
+        "INSERT INTO matter_step_links (matter_step_id, kind, path, created_at)
+         VALUES (?1, ?2, ?3, ?4)",
+        params![old.matter_step_id, old.kind, path, now],
+    )?;
+    let id = tx.last_insert_rowid();
+    tx.commit()?;
+    Ok(id)
 }
 
 pub fn get_step_link_on_conn(conn: &Connection, link_id: i64) -> AppResult<MatterStepLink> {
@@ -145,6 +171,18 @@ mod tests {
         assert!(normalize_path("").is_err());
         assert!(normalize_path("   ").is_err());
         assert!(normalize_path("relative/file.pdf").is_err());
+        assert!(
+            normalize_path("file:///tmp/x").is_err(),
+            "FilePath Display 的 file:// 不得入库"
+        );
+    }
+
+    #[test]
+    fn pathbuf_to_stored_path_is_absolute_not_url() {
+        let p = std::env::temp_dir();
+        let stored = pathbuf_to_stored_path(p.clone()).unwrap();
+        assert!(!stored.starts_with("file:"));
+        assert!(std::path::Path::new(&stored).is_absolute());
     }
 
     #[test]
@@ -177,6 +215,34 @@ mod tests {
         let after = get_matter_on_conn(&conn, mid).unwrap();
         assert_eq!(after.status, crate::db::matter_status::COMPLETED);
         assert!(after.steps[0].missing_evidence);
+    }
+
+    #[test]
+    fn replace_step_link_swaps_path_keeps_kind() {
+        let conn = conn();
+        let mid = create_blank_matter_on_conn(&conn, "空白", 0, None, None).unwrap();
+        let sid = crate::matter::add_matter_step_on_conn(&conn, mid, "步", false, None, None).unwrap();
+        let keep = std::env::temp_dir().to_string_lossy().to_string();
+        let old = format!("{keep}/docket-p1-missing-old");
+        let newp = format!("{keep}/docket-p1-new");
+        let keep_id = add_step_link_on_conn(&conn, sid, link_kind::FOLDER, &keep).unwrap();
+        let old_id = add_step_link_on_conn(&conn, sid, link_kind::FILE, &old).unwrap();
+        let replaced = replace_step_link_on_conn(&conn, old_id, &newp).unwrap();
+        let detail = get_matter_on_conn(&conn, mid).unwrap();
+        let links = &detail.steps[0].links;
+        assert_eq!(links.len(), 2);
+        assert!(links.iter().any(|l| l.id == keep_id && l.path == keep));
+        let neu = links.iter().find(|l| l.id == replaced).expect("新依据");
+        assert_eq!(neu.path, newp);
+        assert_eq!(neu.kind, link_kind::FILE);
+        assert!(!links.iter().any(|l| l.id == old_id));
+    }
+
+    #[test]
+    fn replace_step_link_missing_id_errors() {
+        let conn = conn();
+        let abs = std::env::temp_dir().to_string_lossy().to_string();
+        assert!(replace_step_link_on_conn(&conn, 999, &abs).is_err());
     }
 
     #[test]

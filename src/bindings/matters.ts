@@ -6,6 +6,7 @@ import type {
   MatterDetail,
   MatterSummary,
   UpdateMatterInput,
+  UpdateMatterStepInput,
 } from './types'
 
 export function listMatters(status?: string | null): Promise<MatterSummary[]> {
@@ -42,6 +43,10 @@ export function reopenMatterStep(stepId: number): Promise<void> {
 
 export function addMatterStep(matterId: number, input: AddMatterStepInput): Promise<number> {
   return invoke<number>('add_matter_step', { matterId, input })
+}
+
+export function updateMatterStep(stepId: number, input: UpdateMatterStepInput): Promise<void> {
+  return invoke<void>('update_matter_step', { stepId, input })
 }
 
 export function addTagToMatter(matterId: number, tagId: number): Promise<void> {

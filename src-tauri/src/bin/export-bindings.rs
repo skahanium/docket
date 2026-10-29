@@ -10,6 +10,7 @@ use app_lib::commands::stats::StatsPanelData;
 use app_lib::commands::cadences::{CreateCadenceInput, UpdateCadenceInput};
 use app_lib::commands::matters::{
     AddMatterStepInput, CreateBlankMatterInput, CreateMatterInput, UpdateMatterInput,
+    UpdateMatterStepInput,
 };
 use app_lib::commands::playbooks::{CreatePlaybookInput, UpdatePlaybookInput};
 use app_lib::commands::evidence::AddStepLinkInput;
@@ -87,6 +88,7 @@ fn main() {
         .register::<CreateBlankMatterInput>()
         .register::<UpdateMatterInput>()
         .register::<AddMatterStepInput>()
+        .register::<UpdateMatterStepInput>()
         .register::<AddStepLinkInput>()
         .register::<AgendaItem>()
         .register::<Cadence>()

@@ -5,6 +5,7 @@ import {
   createMatter,
   createBlankMatter,
   addTagToTask,
+  addTagToMatter,
   invalidateAfterTaskMutation,
   pushToast,
   categories,
@@ -70,6 +71,7 @@ const CreateTaskDialog: Component<Props> = (props) => {
           due_date: dueDate() || null,
           category_id: categoryId(),
         })
+        await Promise.all(selectedTags().map((tagId) => addTagToMatter(id, tagId)))
         pushToast('success', '事项已创建')
         invalidateAfterTaskMutation()
         selectMatter(id)
@@ -83,6 +85,7 @@ const CreateTaskDialog: Component<Props> = (props) => {
           due_date: dueDate() || null,
           category_id: categoryId(),
         })
+        await Promise.all(selectedTags().map((tagId) => addTagToMatter(id, tagId)))
         pushToast('success', '空白事项已创建')
         invalidateAfterTaskMutation()
         selectMatter(id)

@@ -251,6 +251,51 @@ mod tests {
     }
 
     #[test]
+    fn instantiate_preserves_saved_step_order() {
+        let conn = conn();
+        let pb = create_playbook_on_conn(&conn, "倒序").unwrap();
+        set_playbook_steps_on_conn(
+            &conn,
+            pb,
+            &[
+                PlaybookStepInput {
+                    title: "A".into(),
+                    optional: false,
+                    evidence_required: false,
+                    estimated_minutes: None,
+                },
+                PlaybookStepInput {
+                    title: "B".into(),
+                    optional: false,
+                    evidence_required: false,
+                    estimated_minutes: None,
+                },
+            ],
+        )
+        .unwrap();
+        // Insertion order is A then B (A has smaller id). Reverse sort_order so B is first.
+        conn.execute(
+            "UPDATE playbook_steps SET sort_order = CASE title
+               WHEN 'B' THEN 0 WHEN 'A' THEN 1 ELSE sort_order END
+             WHERE playbook_id=?1",
+            rusqlite::params![pb],
+        )
+        .unwrap();
+        let mid = instantiate_matter_on_conn(&conn, pb, "事", 0, None, None).unwrap();
+        let detail = get_matter_on_conn(&conn, mid).unwrap();
+        assert_eq!(detail.steps[0].title, "B");
+        assert_eq!(detail.steps[0].sort_order, 0);
+        assert_eq!(detail.steps[1].title, "A");
+        assert_eq!(detail.steps[1].sort_order, 1);
+        assert!(
+            detail.steps[0].playbook_step_id.unwrap() > detail.steps[1].playbook_step_id.unwrap(),
+            "B 后插入、id 更大，必须靠 sort_order 排到前面"
+        );
+        let current = current_pending_step(&conn, mid).unwrap().unwrap();
+        assert_eq!(current.title, "B");
+    }
+
+    #[test]
     fn instantiate_failure_does_not_leave_half_matter() {
         let conn = conn();
         let err = instantiate_matter_on_conn(&conn, 999, "ghost", 0, None, None).unwrap_err();
