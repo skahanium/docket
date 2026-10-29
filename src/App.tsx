@@ -159,7 +159,12 @@ const App: Component = () => {
             <Match when={(activeView?.() ?? 'all') === 'today' || (activeView?.() ?? 'all') === 'overdue'}>
               <AgendaList
                 title={viewTitle()}
-                items={filterAgendaItems(agenda() ?? [], { search: searchQuery() ?? '', priority: activePriority() })}
+                items={filterAgendaItems(agenda() ?? [], {
+                  search: searchQuery() ?? '',
+                  priority: activePriority(),
+                  categoryId: activeCategoryId(),
+                  tagId: activeTagId(),
+                })}
                 loading={agenda?.loading ?? false}
                 error={agenda?.error ? String(agenda.error) : null}
                 onToggle={(item) => {

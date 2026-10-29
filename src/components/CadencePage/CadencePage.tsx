@@ -13,6 +13,7 @@ import {
   selectMatter,
 } from '../../stores'
 import type { Cadence, CadenceProgress } from '../../bindings/types'
+import { inclusiveEndDate } from '../../utils/cadencePeriod'
 
 const PERIOD_LABEL: Record<string, string> = {
   month: '每月',
@@ -177,7 +178,7 @@ const CadenceCard: Component<{
         {data()
           ? ` · ${data()!.completed_count}${props.cadence.target_count ? ` / ${props.cadence.target_count}` : ''}`
           : ''}
-        {data() ? ` · ${data()!.period_start} 至 ${data()!.period_end}` : ''}
+        {data() ? ` · ${data()!.period_start} 至 ${inclusiveEndDate(data()!.period_end)}` : ''}
       </div>
       <Show when={props.cadence.target_count}>
         <div class={styles.progress}><div class={styles.progressFill} style={{ width: `${pct()}%` }} /></div>

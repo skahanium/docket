@@ -122,6 +122,16 @@
   border-radius: var(--radius-sm);
 }
 
+.missingBadge {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--warning);
+  background: var(--warning-light);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
 .empty {
   font-size: var(--text-sm);
   color: var(--text-label);

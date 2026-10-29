@@ -634,6 +634,19 @@ mod tests {
     }
 
     #[test]
+    fn update_matter_input_playbook_id_json_is_ignored() {
+        let conn = conn();
+        let (original_pb, mid) = seeded_matter(&conn);
+        let input: crate::commands::matters::UpdateMatterInput =
+            serde_json::from_str(r#"{"title":"仍是原模板","playbook_id":999}"#).unwrap();
+        crate::commands::matters::apply_update_matter_input(&conn, mid, input).unwrap();
+        let detail = get_matter_on_conn(&conn, mid).unwrap();
+        assert_eq!(detail.playbook_id, Some(original_pb));
+        assert_eq!(detail.title, "仍是原模板");
+        assert_ne!(original_pb, 999);
+    }
+
+    #[test]
     fn skip_is_legal_and_advances() {
         let conn = conn();
         let (_pb, mid) = seeded_matter(&conn);

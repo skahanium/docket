@@ -5,7 +5,8 @@ use crate::error::{AppError, AppResult};
 use crate::evidence::{load_links_for_steps, missing_evidence};
 use crate::models::AgendaItem;
 use chrono::{DateTime, Days, Local, NaiveDate, TimeZone, Timelike};
-use rusqlite::Connection;
+use rusqlite::{params_from_iter, Connection};
+use std::collections::HashMap;
 
 pub const AGENDA_KIND_TASK: &str = "task";
 pub const AGENDA_KIND_MATTER_STEP: &str = "matter_step";
@@ -121,7 +122,7 @@ fn list_task_agenda(
         today_active_predicate("", "?2")
     };
     let sql = format!(
-        "SELECT id, title, due_date, priority FROM tasks
+        "SELECT id, title, due_date, priority, category_id FROM tasks
          WHERE status = ?1 AND {extra}
          ORDER BY priority DESC, due_date ASC, title ASC"
     );
@@ -136,6 +137,8 @@ fn list_task_agenda(
             priority: row.get(3)?,
             matter_id: None,
             missing_evidence: false,
+            category_id: row.get(4)?,
+            tag_ids: Vec::new(),
         })
     })?;
     let mut out = Vec::new();
@@ -156,7 +159,7 @@ fn list_current_step_agenda(
         ""
     };
     let sql = format!(
-        "SELECT s.id, s.title, s.due_date, s.evidence_required, m.id, m.title, m.priority, m.due_date
+        "SELECT s.id, s.title, s.due_date, s.evidence_required, m.id, m.title, m.priority, m.due_date, m.category_id
          FROM matter_steps s
          JOIN matters m ON m.id = s.matter_id
          WHERE m.status = ?1
@@ -202,7 +205,61 @@ fn map_step_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<AgendaItem> {
         priority: row.get(6)?,
         matter_id: row.get(4)?,
         missing_evidence: evidence_required != 0,
+        category_id: row.get(8)?,
+        tag_ids: Vec::new(),
     })
+}
+
+fn load_tag_ids_for(
+    conn: &Connection,
+    table: &str,
+    owner_column: &str,
+    owner_ids: &[i64],
+) -> AppResult<HashMap<i64, Vec<i64>>> {
+    let mut map: HashMap<i64, Vec<i64>> = HashMap::new();
+    if owner_ids.is_empty() {
+        return Ok(map);
+    }
+    let placeholders = (0..owner_ids.len()).map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "SELECT {owner_column}, tag_id FROM {table} WHERE {owner_column} IN ({placeholders}) ORDER BY tag_id"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    for row in stmt.query_map(params_from_iter(owner_ids.iter().copied()), |row| {
+        Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?))
+    })? {
+        let (owner_id, tag_id) = row?;
+        map.entry(owner_id).or_default().push(tag_id);
+    }
+    Ok(map)
+}
+
+fn attach_agenda_tags(conn: &Connection, items: &mut [AgendaItem]) -> AppResult<()> {
+    let task_ids: Vec<i64> = items
+        .iter()
+        .filter(|i| i.kind == AGENDA_KIND_TASK)
+        .map(|i| i.id)
+        .collect();
+    let matter_ids: Vec<i64> = items
+        .iter()
+        .filter_map(|i| {
+            if i.kind == AGENDA_KIND_MATTER_STEP {
+                i.matter_id
+            } else {
+                None
+            }
+        })
+        .collect();
+    let task_tags = load_tag_ids_for(conn, "task_tags", "task_id", &task_ids)?;
+    let matter_tags = load_tag_ids_for(conn, "matter_tags", "matter_id", &matter_ids)?;
+    for item in items {
+        if item.kind == AGENDA_KIND_TASK {
+            item.tag_ids = task_tags.get(&item.id).cloned().unwrap_or_default();
+        } else if let Some(mid) = item.matter_id {
+            item.tag_ids = matter_tags.get(&mid).cloned().unwrap_or_default();
+        }
+    }
+    Ok(())
 }
 
 /// `view` is `today` or `overdue`. Today includes every active matter's current step.
@@ -215,6 +272,7 @@ pub fn list_agenda_on_conn(conn: &Connection, view: &str) -> AppResult<Vec<Agend
     };
     let mut items = list_task_agenda(conn, &today, overdue_only)?;
     items.extend(list_current_step_agenda(conn, &today, overdue_only)?);
+    attach_agenda_tags(conn, &mut items)?;
     items.sort_by(|a, b| {
         b.priority
             .cmp(&a.priority)
@@ -289,6 +347,85 @@ mod tests {
         let after = list_agenda_on_conn(&conn, "today").unwrap();
         assert!(after.iter().any(|i| i.title == "下一步"));
         assert!(!after.iter().any(|i| i.title == "当前步"));
+    }
+
+    #[test]
+    fn list_agenda_today_includes_category_and_tags() {
+        use crate::commands::tasks::{create_task_on_conn, CreateTaskInput};
+        use crate::db;
+        use crate::matter::add_tag_to_matter_on_conn;
+        use crate::models::PlaybookStepInput;
+        use crate::playbook::{
+            create_playbook_on_conn, instantiate_matter_on_conn, set_playbook_steps_on_conn,
+        };
+        use rusqlite::Connection;
+
+        let conn = Connection::open_in_memory().unwrap();
+        db::init_db(&conn).unwrap();
+        conn.execute("INSERT INTO categories (name) VALUES ('工')", []).unwrap();
+        let cat_id = conn.last_insert_rowid();
+        conn.execute("INSERT INTO tags (name) VALUES ('甲')", []).unwrap();
+        let tag_id = conn.last_insert_rowid();
+        let today = crate::time::local_today_date();
+        let tagged_task = create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "带分类标签任务".into(),
+                description: None,
+                priority: Some(2),
+                due_date: Some(today.clone()),
+                category_id: Some(cat_id),
+                recurrence_rule: None,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
+            rusqlite::params![tagged_task, tag_id],
+        )
+        .unwrap();
+        let plain_task = create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "无分类任务".into(),
+                description: None,
+                priority: Some(2),
+                due_date: Some(today.clone()),
+                category_id: None,
+                recurrence_rule: None,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap();
+        let pb = create_playbook_on_conn(&conn, "带分类模板").unwrap();
+        set_playbook_steps_on_conn(
+            &conn,
+            pb,
+            &[PlaybookStepInput {
+                title: "当前步".into(),
+                optional: false,
+                evidence_required: false,
+                estimated_minutes: None,
+            }],
+        )
+        .unwrap();
+        let mid = instantiate_matter_on_conn(&conn, pb, "带分类事项", 2, Some(cat_id), None).unwrap();
+        add_tag_to_matter_on_conn(&conn, mid, tag_id).unwrap();
+
+        let items = list_agenda_on_conn(&conn, "today").unwrap();
+        let tagged = items.iter().find(|i| i.id == tagged_task).expect("tagged task");
+        assert_eq!(tagged.category_id, Some(cat_id));
+        assert_eq!(tagged.tag_ids, vec![tag_id]);
+        let plain = items.iter().find(|i| i.id == plain_task).expect("plain task");
+        assert_eq!(plain.category_id, None);
+        assert!(plain.tag_ids.is_empty());
+        let step = items
+            .iter()
+            .find(|i| i.kind == AGENDA_KIND_MATTER_STEP && i.matter_id == Some(mid))
+            .expect("matter step");
+        assert_eq!(step.category_id, Some(cat_id));
+        assert_eq!(step.tag_ids, vec![tag_id]);
     }
 
     #[test]

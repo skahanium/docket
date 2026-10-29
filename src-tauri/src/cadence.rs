@@ -468,4 +468,41 @@ mod tests {
         assert_eq!(after.period_start, format_calendar_date(s));
         assert_eq!(after.period_end, format_calendar_date(e));
     }
+
+    #[test]
+    fn deleting_playbook_referenced_by_cadence_is_restricted() {
+        use crate::playbook::update_playbook_on_conn;
+
+        let conn = conn();
+        let pb = two_step_playbook(&conn);
+        let mid = instantiate_matter_on_conn(&conn, pb, "办结项", 0, None, None).unwrap();
+        finish_matter(&conn, mid);
+        let cadence = create_cadence_on_conn(&conn, "限模板", "month", None, &[pb], &[]).unwrap();
+        let delete = conn.execute("DELETE FROM playbooks WHERE id=?1", params![pb]);
+        assert!(delete.is_err(), "指标仍引用模板时删除须失败");
+        update_playbook_on_conn(&conn, pb, None, Some(true)).unwrap();
+        let today = crate::time::local_today_date();
+        let progress = cadence_progress_on_conn(&conn, cadence, &today).unwrap();
+        assert!(progress.matching_matters.iter().any(|m| m.id == mid));
+        assert!(progress.cadence.playbook_ids.contains(&pb));
+    }
+
+    #[test]
+    fn deleting_tag_referenced_by_cadence_is_restricted() {
+        let conn = conn();
+        conn.execute("INSERT INTO tags (name) VALUES ('甲')", []).unwrap();
+        let tag_id = conn.last_insert_rowid();
+        let pb = two_step_playbook(&conn);
+        let mid = instantiate_matter_on_conn(&conn, pb, "办结项", 0, None, None).unwrap();
+        add_tag_to_matter_on_conn(&conn, mid, tag_id).unwrap();
+        finish_matter(&conn, mid);
+        let cadence =
+            create_cadence_on_conn(&conn, "限标签", "month", None, &[], &[tag_id]).unwrap();
+        let delete = conn.execute("DELETE FROM tags WHERE id=?1", params![tag_id]);
+        assert!(delete.is_err(), "指标仍引用标签时删除须失败");
+        let today = crate::time::local_today_date();
+        let progress = cadence_progress_on_conn(&conn, cadence, &today).unwrap();
+        assert!(progress.matching_matters.iter().any(|m| m.id == mid));
+        assert!(progress.cadence.tag_ids.contains(&tag_id));
+    }
 }

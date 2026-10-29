@@ -142,8 +142,12 @@ fn maybe_overdue_reminder(app: &AppHandle, conn: &Connection) {
         .notification()
         .builder()
         .title("Docket · 逾期提醒")
-        .body(format!("你有 {overdue_n} 项任务已逾期"))
+        .body(overdue_reminder_body(overdue_n))
         .show();
+}
+
+pub fn overdue_reminder_body(count: usize) -> String {
+    format!("你有 {count} 项已逾期")
 }
 
 fn process_reminders(app: &AppHandle, conn: &Connection) {
@@ -232,5 +236,12 @@ mod tests {
         assert!(!should_send_daily_summary(local_at(7, 59), "08:00", false));
         assert!(!should_send_daily_summary(local_at(18, 0), "08:00", true));
         assert!(!should_send_daily_summary(local_at(8, 0), "bad", false));
+    }
+
+    #[test]
+    fn overdue_reminder_body_omits_task_word() {
+        let body = overdue_reminder_body(3);
+        assert!(body.contains("3 项已逾期"));
+        assert!(!body.contains("任务"));
     }
 }

@@ -298,5 +298,9 @@ pub struct AgendaItem {
     #[specta(type = Option<f64>)]
     pub matter_id: Option<i64>,
     pub missing_evidence: bool,
+    #[specta(type = Option<f64>)]
+    pub category_id: Option<i64>,
+    #[specta(type = Vec<f64>)]
+    pub tag_ids: Vec<i64>,
 }
 

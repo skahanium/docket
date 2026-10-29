@@ -169,6 +169,36 @@ fn high_priority_overdue_not_duplicated_in_today() {
 }
 
 #[test]
+fn desktop_panel_snapshot_marks_missing_evidence() {
+    use app_lib::models::PlaybookStepInput;
+    use app_lib::playbook::{create_playbook_on_conn, instantiate_matter_on_conn, set_playbook_steps_on_conn};
+
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+    let pb = create_playbook_on_conn(&conn, "要依据").expect("playbook");
+    set_playbook_steps_on_conn(
+        &conn,
+        pb,
+        &[PlaybookStepInput {
+            title: "缺依据步".into(),
+            optional: false,
+            evidence_required: true,
+            estimated_minutes: None,
+        }],
+    )
+    .expect("steps");
+    instantiate_matter_on_conn(&conn, pb, "缺依据事项", 2, None, None).expect("matter");
+
+    let snap = snapshot_on_conn(&conn).expect("snapshot");
+    let row = snap
+        .today
+        .iter()
+        .find(|t| t.title == "缺依据步")
+        .expect("today step");
+    assert!(row.missing_evidence);
+}
+
+#[test]
 fn get_missing_task_returns_structured_error() {
     let db = in_memory_db();
     let conn = lock_conn(&db).expect("lock");

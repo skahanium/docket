@@ -35,7 +35,8 @@
 - 任务：沿用 `agenda::today_active_predicate` / `overdue_active_predicate`（本地日历日）
 - 事项：每个 `active` 事项的当前步一律进入今日
 - 逾期：当前步或事项的 `due_date` 早于本地今日
-- 投影类型 `AgendaItem`，禁止把步骤插入 `tasks` 表
+- 投影类型 `AgendaItem`（含 `category_id` / `tag_ids`），禁止把步骤插入 `tasks` 表
+- 今日/逾期侧栏按**单分类、单标签**筛议程（与任务列表相同：事项步跟事项的分类/标签；无分类项在选了分类时排除）
 
 ## 指标过滤器
 
@@ -43,6 +44,8 @@
 
 - 模板集合为空（不限模板，含空白事项）或 `playbook_id` 命中
 - 标签集合为空或事项具备**全部**所选标签
+
+UI 期间文案含末日（`period_start` 至末日）；IPC `period_end` 仍是半开区间不含的右端点。删被指标引用的模板/标签行 `ON DELETE RESTRICT`（归档不碰过滤器）。空过滤器仍 = 不限。
 
 指标不限制能创建哪些事项。今日不展示指标本身。
 
@@ -56,7 +59,7 @@
 
 ## 迁移
 
-SQLite `_migrations` **v5**。表名见上。`focus_sessions` / `schedule_entries` 本波不改外键。
+SQLite `_migrations` **v6**。v5 建表历史保留（`cadence_playbooks` / `cadence_tags` 原 CASCADE）；v6 重建这两张过滤表为 `playbook_id` / `tag_id` **ON DELETE RESTRICT**。`focus_sessions` / `schedule_entries` 本波不改外键。
 
 ## 非目标
 

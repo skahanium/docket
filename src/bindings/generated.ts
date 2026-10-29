@@ -22,6 +22,8 @@ export type AgendaItem = {
 	priority: number,
 	matter_id: number | null,
 	missing_evidence: boolean,
+	category_id: number | null,
+	tag_ids: (number | null)[],
 };
 
 export type Cadence = {

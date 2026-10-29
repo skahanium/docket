@@ -64,7 +64,7 @@ npm run check:bindings
 ```
 src-tauri/src/
 ├── main.rs / lib.rs    # 入口、托盘、命令注册
-├── db.rs               # 迁移 v1–v5、索引、节假日种子、is_workday
+├── db.rs               # 迁移 v1–v6、索引、节假日种子、is_workday
 ├── models.rs           # Serde 领域模型（任务 / 事项 / 模板 / 指标）
 ├── agenda.rs           # 今日/逾期谓词、本地日边界、AgendaItem 合并
 ├── playbook.rs / matter.rs / cadence.rs / evidence.rs
@@ -114,7 +114,7 @@ src/
 | 领域 | 代表命令 | 说明 |
 |------|----------|------|
 | 任务 | `list_tasks`, `create_task`, … | 列表为批量查询，无 N+1 |
-| 议程 | `list_agenda` | 今日/逾期：任务谓词 ∪ 各进行中事项的当前步 |
+| 议程 | `list_agenda` | 今日/逾期：任务谓词 ∪ 各进行中事项的当前步；侧栏分类/标签在前端筛 |
 | 模板 | `list_playbooks`, `create_playbook`, `set_playbook_steps` | 实例化时拷贝步骤；创建后不能改 `playbook_id` |
 | 事项 | `list_matters`, `create_matter`, `create_blank_matter`, `update_matter`, `update_matter_step`, `complete_matter_step`, `skip_matter_step`, `reopen_matter_step` | 与 tasks 分表；一事一步 |
 | 依据 | `add_step_link`, `remove_step_link`, `replace_step_link`, `open_step_link`, `reveal_step_link`, `pick_evidence_path` | 只存绝对路径；dialog 选路径，opener 打开 |
@@ -135,7 +135,7 @@ src/
 ## 数据库
 
 - 路径：系统应用数据目录下的 `docket.db`
-- 迁移：`_migrations` 表版本化（当前 **v5**：流程模板、事项、步骤依据、周期指标）
+- 迁移：`_migrations` 表版本化（当前 **v6**：v5 的模板/事项/依据/指标，外加指标过滤器 `ON DELETE RESTRICT`）
 - 完整性：启动时 `PRAGMA integrity_check`
 
 ## 许可证

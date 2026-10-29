@@ -33,7 +33,7 @@ const AgendaList: Component<Props> = (props) => {
       </Show>
       <Show when={!props.loading && !props.error && props.items.length === 0}>
         <div class={listStyles.empty}>
-          <p class={listStyles.emptyTitle}>今日暂无安排</p>
+          <p class={listStyles.emptyTitle}>暂无安排</p>
           <p class={listStyles.emptyHint}>任务与事项的当前步会出现在这里</p>
         </div>
       </Show>

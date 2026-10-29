@@ -319,7 +319,63 @@ pub fn init_db(conn: &Connection) -> SqlResult<()> {
         conn.execute("INSERT INTO _migrations (version, applied_at) VALUES (5, ?1)", [&now])?;
     }
 
+    if current_version < 6 {
+        migrate_v6_cadence_filters(conn)?;
+    }
+
     Ok(())
+}
+
+fn migrate_v6_cadence_filters(conn: &Connection) -> SqlResult<()> {
+    conn.execute_batch("PRAGMA foreign_keys=OFF;")?;
+    let now = chrono::Utc::now().to_rfc3339();
+    let migrated = (|| -> SqlResult<()> {
+        conn.execute_batch(
+            "BEGIN IMMEDIATE;
+             DROP TABLE IF EXISTS cadence_playbooks_new;
+             DROP TABLE IF EXISTS cadence_tags_new;
+             CREATE TABLE cadence_playbooks_new (
+                cadence_id   INTEGER NOT NULL,
+                playbook_id  INTEGER NOT NULL,
+                PRIMARY KEY (cadence_id, playbook_id),
+                FOREIGN KEY (cadence_id) REFERENCES cadences(id) ON DELETE CASCADE,
+                FOREIGN KEY (playbook_id) REFERENCES playbooks(id) ON DELETE RESTRICT
+             );
+             INSERT INTO cadence_playbooks_new SELECT * FROM cadence_playbooks;
+             DROP TABLE cadence_playbooks;
+             ALTER TABLE cadence_playbooks_new RENAME TO cadence_playbooks;
+             CREATE TABLE cadence_tags_new (
+                cadence_id INTEGER NOT NULL,
+                tag_id     INTEGER NOT NULL,
+                PRIMARY KEY (cadence_id, tag_id),
+                FOREIGN KEY (cadence_id) REFERENCES cadences(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE RESTRICT
+             );
+             INSERT INTO cadence_tags_new SELECT * FROM cadence_tags;
+             DROP TABLE cadence_tags;
+             ALTER TABLE cadence_tags_new RENAME TO cadence_tags;",
+        )?;
+        conn.execute(
+            "INSERT INTO _migrations (version, applied_at) VALUES (6, ?1)",
+            [&now],
+        )?;
+        {
+            let mut stmt = conn.prepare("PRAGMA foreign_key_check")?;
+            if stmt.exists([])? {
+                return Err(rusqlite::Error::SqliteFailure(
+                    rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+                    Some("v6 foreign_key_check failed".into()),
+                ));
+            }
+        }
+        conn.execute_batch("COMMIT;")?;
+        Ok(())
+    })();
+    if migrated.is_err() {
+        let _ = conn.execute_batch("ROLLBACK;");
+    }
+    conn.execute_batch("PRAGMA foreign_keys=ON;")?;
+    migrated
 }
 
 pub fn seed_defaults(conn: &Connection) -> SqlResult<()> {
@@ -660,6 +716,32 @@ mod tests {
         assert!(tables.contains(&"cadence_playbooks".to_string()));
         assert!(tables.contains(&"cadence_tags".to_string()));
         assert!(tables.contains(&"_migrations".to_string()));
+        let version: i32 = conn
+            .query_row("SELECT MAX(version) FROM _migrations", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 6);
+    }
+
+    #[test]
+    fn test_migration_v6_restricts_cadence_filter_fks() {
+        let conn = test_conn();
+        init_db(&conn).unwrap();
+        let playbook_action: String = conn
+            .query_row(
+                "SELECT on_delete FROM pragma_foreign_key_list('cadence_playbooks') WHERE \"from\"='playbook_id'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let tag_action: String = conn
+            .query_row(
+                "SELECT on_delete FROM pragma_foreign_key_list('cadence_tags') WHERE \"from\"='tag_id'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(playbook_action.to_uppercase(), "RESTRICT");
+        assert_eq!(tag_action.to_uppercase(), "RESTRICT");
     }
 
     #[test]

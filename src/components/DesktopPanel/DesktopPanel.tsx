@@ -132,7 +132,7 @@ const DesktopPanel: Component = () => {
         type="button"
         class={styles.item}
         onClick={() => openRow(task)}
-        aria-label={`${task.title}${task.subtitle ? `，${task.subtitle}` : ''}${overdueDays ? `，逾期 ${overdueDays} 天` : ''}`}
+        aria-label={`${task.title}${task.subtitle ? `，${task.subtitle}` : ''}${overdueDays ? `，逾期 ${overdueDays} 天` : ''}${task.missing_evidence ? '，缺依据' : ''}`}
       >
         <span
           class={styles.priority}
@@ -146,6 +146,9 @@ const DesktopPanel: Component = () => {
           {task.title}
           {task.subtitle ? ` · ${task.subtitle}` : ''}
         </span>
+        <Show when={task.missing_evidence}>
+          <span class={styles.missingBadge}>缺依据</span>
+        </Show>
         <Show when={overdueDays != null}>
           <span class={styles.overdueBadge}>{overdueDays}天</span>
         </Show>
@@ -156,7 +159,7 @@ const DesktopPanel: Component = () => {
   const renderList = (items: TaskPanelRow[] | undefined, section: 'today' | 'overdue') => (
     <Show
       when={items && items.length > 0}
-      fallback={<p class={styles.empty}>暂无任务</p>}
+      fallback={<p class={styles.empty}>暂无安排</p>}
     >
       <For each={items!}>{(task) => renderRow({ ...task, section })}</For>
     </Show>
@@ -202,7 +205,7 @@ const DesktopPanel: Component = () => {
               when={!isEmpty()}
               fallback={
                 <div class={styles.emptyBlock}>
-                  <p class={styles.emptyTitle}>暂无任务</p>
+                  <p class={styles.emptyTitle}>暂无安排</p>
                   <p class={styles.emptyHint}>今天的安排会出现在这里</p>
                 </div>
               }

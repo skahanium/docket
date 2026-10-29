@@ -1,4 +1,5 @@
 use crate::db::{lock_conn, DbState};
+use crate::error::AppResult;
 use crate::matter::{
     add_matter_step_on_conn, add_tag_to_matter_on_conn, complete_matter_step_on_conn,
     create_blank_matter_on_conn, get_matter_on_conn, list_matters_on_conn, remove_tag_from_matter_on_conn,
@@ -7,6 +8,7 @@ use crate::matter::{
 };
 use crate::models::{MatterDetail, MatterSummary};
 use crate::playbook::instantiate_matter_on_conn;
+use rusqlite::Connection;
 use specta::Type;
 use tauri::{AppHandle, State};
 
@@ -105,14 +107,11 @@ pub fn get_matter(state: State<DbState>, id: i64) -> Result<MatterDetail, String
     get_matter_on_conn(&conn, id).map_err(Into::into)
 }
 
-#[tauri::command]
-pub fn update_matter(
-    app: AppHandle,
-    state: State<DbState>,
+pub(crate) fn apply_update_matter_input(
+    conn: &Connection,
     id: i64,
     input: UpdateMatterInput,
-) -> Result<(), String> {
-    let conn = lock_conn(&state)?;
+) -> AppResult<()> {
     let category = if input.clear_category_id.unwrap_or(false) {
         Some(None)
     } else {
@@ -123,7 +122,18 @@ pub fn update_matter(
     } else {
         input.due_date.as_deref().map(Some)
     };
-    update_matter_on_conn(&conn, id, input.title.as_deref(), input.priority, category, due)?;
+    update_matter_on_conn(conn, id, input.title.as_deref(), input.priority, category, due)
+}
+
+#[tauri::command]
+pub fn update_matter(
+    app: AppHandle,
+    state: State<DbState>,
+    id: i64,
+    input: UpdateMatterInput,
+) -> Result<(), String> {
+    let conn = lock_conn(&state)?;
+    apply_update_matter_input(&conn, id, input)?;
     crate::app_windows::emit_tasks_changed(&app);
     Ok(())
 }
