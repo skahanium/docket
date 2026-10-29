@@ -96,6 +96,14 @@ pub fn rfc3339_to_local_date(ts: &str) -> Option<String> {
         .map(|dt| dt.with_timezone(&Local).format("%Y-%m-%d").to_string())
 }
 
+/// Whether `completed_at` (UTC RFC3339) falls on a local calendar day in `[start, end)`.
+pub fn local_date_in_period(completed_at: &str, start: NaiveDate, end: NaiveDate) -> bool {
+    rfc3339_to_local_date(completed_at)
+        .and_then(|s| parse_calendar_date(&s).ok())
+        .map(|d| d >= start && d < end)
+        .unwrap_or(false)
+}
+
 pub fn rfc3339_to_local_hour(ts: &str) -> Option<i32> {
     DateTime::parse_from_rfc3339(ts)
         .ok()
@@ -281,6 +289,19 @@ mod tests {
         let after = list_agenda_on_conn(&conn, "today").unwrap();
         assert!(after.iter().any(|i| i.title == "下一步"));
         assert!(!after.iter().any(|i| i.title == "当前步"));
+    }
+
+    #[test]
+    fn local_date_in_period_uses_local_calendar_not_string_order() {
+        let oct_s = NaiveDate::from_ymd_opt(2026, 10, 1).unwrap();
+        let oct_e = NaiveDate::from_ymd_opt(2026, 11, 1).unwrap();
+        let nov_s = NaiveDate::from_ymd_opt(2026, 11, 1).unwrap();
+        let nov_e = NaiveDate::from_ymd_opt(2026, 12, 1).unwrap();
+        let ts = "2026-10-31T16:00:00+00:00";
+        let local = rfc3339_to_local_date(ts).unwrap();
+        let d = parse_calendar_date(&local).unwrap();
+        assert_eq!(local_date_in_period(ts, oct_s, oct_e), d >= oct_s && d < oct_e);
+        assert_eq!(local_date_in_period(ts, nov_s, nov_e), d >= nov_s && d < nov_e);
     }
 
     #[test]

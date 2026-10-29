@@ -1,6 +1,6 @@
 //! Cadence period bounds and completed-matter counting (query, not accumulator).
 
-use crate::agenda::{format_calendar_date, local_range_bounds, parse_calendar_date, rfc3339_to_local_date};
+use crate::agenda::{format_calendar_date, parse_calendar_date};
 use crate::db::cadence_period;
 use crate::error::{AppError, AppResult};
 use crate::matter::list_completed_matters_in_range;
@@ -237,8 +237,7 @@ pub fn cadence_progress_on_conn(
 ) -> AppResult<CadenceProgress> {
     let cadence = get_cadence_on_conn(conn, cadence_id)?;
     let (start, end) = period_bounds(&cadence.period, as_of_local_date)?;
-    let (range_start, range_end) = local_range_bounds(start, end).map_err(AppError::InvalidDate)?;
-    let completed = list_completed_matters_in_range(conn, &range_start, &range_end)?;
+    let completed = list_completed_matters_in_range(conn, start, end)?;
     let matching = count_completed(&completed, &cadence.playbook_ids, &cadence.tag_ids);
     Ok(CadenceProgress {
         cadence,
@@ -247,14 +246,6 @@ pub fn cadence_progress_on_conn(
         period_start: format_calendar_date(start),
         period_end: format_calendar_date(end),
     })
-}
-
-/// Used by tests that insert a known `completed_at`.
-pub fn local_date_in_period(completed_at: &str, start: NaiveDate, end: NaiveDate) -> bool {
-    rfc3339_to_local_date(completed_at)
-        .and_then(|s| parse_calendar_date(&s).ok())
-        .map(|d| d >= start && d < end)
-        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -318,31 +309,78 @@ mod tests {
         assert_eq!(e, NaiveDate::from_ymd_opt(2027, 1, 1).unwrap());
     }
 
+    fn set_completed_at(conn: &Connection, matter_id: i64, ts: &str) {
+        conn.execute(
+            "UPDATE matters SET completed_at=?1 WHERE id=?2",
+            rusqlite::params![ts, matter_id],
+        )
+        .unwrap();
+    }
+
+    fn mid_month(date: NaiveDate) -> String {
+        format!("{:04}-{:02}-15", date.year(), date.month())
+    }
+
+    fn prev_month_mid(date: NaiveDate) -> String {
+        let (y, m) = if date.month() == 1 {
+            (date.year() - 1, 12)
+        } else {
+            (date.year(), date.month() - 1)
+        };
+        format!("{:04}-{:02}-15", y, m)
+    }
+
+    fn next_month_mid(date: NaiveDate) -> String {
+        let (y, m) = if date.month() == 12 {
+            (date.year() + 1, 1)
+        } else {
+            (date.year(), date.month() + 1)
+        };
+        format!("{:04}-{:02}-15", y, m)
+    }
+
     #[test]
-    fn east8_completion_buckets_on_local_month_edge() {
+    fn cadence_progress_buckets_by_local_calendar_day() {
+        let conn = conn();
+        let pb = two_step_playbook(&conn);
+        let mid = instantiate_matter_on_conn(&conn, pb, "边界办结", 0, None, None).unwrap();
+        finish_matter(&conn, mid);
+
+        const TS: &str = "2026-10-31T16:00:00+00:00";
+        set_completed_at(&conn, mid, TS);
+        let local = crate::agenda::rfc3339_to_local_date(TS).expect("local day");
+        let local_d = crate::agenda::parse_calendar_date(&local).unwrap();
+
+        let cadence = create_cadence_on_conn(&conn, "月度", "month", None, &[], &[]).unwrap();
+        let in_month = cadence_progress_on_conn(&conn, cadence, &mid_month(local_d)).unwrap();
+        assert!(
+            in_month.matching_matters.iter().any(|m| m.id == mid),
+            "办结应计入 completed_at 的本机日所在月 {local}"
+        );
+        let prev = cadence_progress_on_conn(&conn, cadence, &prev_month_mid(local_d)).unwrap();
+        assert!(
+            !prev.matching_matters.iter().any(|m| m.id == mid),
+            "办结不应计入本机日的上一月"
+        );
+        let next = cadence_progress_on_conn(&conn, cadence, &next_month_mid(local_d)).unwrap();
+        assert!(
+            !next.matching_matters.iter().any(|m| m.id == mid),
+            "办结不应计入本机日的下一月"
+        );
+
         let offset = Local::now().offset().local_minus_utc();
-        if offset != 8 * 3600 {
-            return;
+        if offset == 8 * 3600 {
+            let oct = cadence_progress_on_conn(&conn, cadence, "2026-10-15").unwrap();
+            let nov = cadence_progress_on_conn(&conn, cadence, "2026-11-02").unwrap();
+            assert!(!oct.matching_matters.iter().any(|m| m.id == mid));
+            assert!(nov.matching_matters.iter().any(|m| m.id == mid));
+
+            set_completed_at(&conn, mid, "2026-10-31T15:59:00+00:00");
+            let oct2 = cadence_progress_on_conn(&conn, cadence, "2026-10-15").unwrap();
+            let nov2 = cadence_progress_on_conn(&conn, cadence, "2026-11-02").unwrap();
+            assert!(oct2.matching_matters.iter().any(|m| m.id == mid));
+            assert!(!nov2.matching_matters.iter().any(|m| m.id == mid));
         }
-        // 16:00 UTC Oct 31 = 00:00 Nov 1 CST → November, not October.
-        let (oct_s, oct_e) = period_bounds("month", "2026-10-15").unwrap();
-        let (nov_s, nov_e) = period_bounds("month", "2026-11-02").unwrap();
-        assert!(!local_date_in_period(
-            "2026-10-31T16:00:00+00:00",
-            oct_s,
-            oct_e
-        ));
-        assert!(local_date_in_period(
-            "2026-10-31T16:00:00+00:00",
-            nov_s,
-            nov_e
-        ));
-        // 15:59 UTC Oct 31 = 23:59 Oct 31 CST → October.
-        assert!(local_date_in_period(
-            "2026-10-31T15:59:00+00:00",
-            oct_s,
-            oct_e
-        ));
     }
 
     #[test]

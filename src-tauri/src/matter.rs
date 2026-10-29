@@ -1,10 +1,12 @@
 //! Matter lifecycle: current step (derived), complete / skip / reopen.
 
+use crate::agenda::local_date_in_period;
 use crate::db::{matter_status, step_status};
 use crate::error::{AppError, AppResult};
 use crate::evidence::{load_links_for_steps, missing_evidence};
 use crate::models::{MatterDetail, MatterStep, MatterStepBrief, MatterSummary, Tag};
 use crate::playbook::require_title;
+use chrono::NaiveDate;
 use rusqlite::{params, params_from_iter, Connection};
 use std::collections::HashMap;
 
@@ -437,8 +439,8 @@ pub fn list_matters_on_conn(conn: &Connection, status: Option<&str>) -> AppResul
 
 pub fn list_completed_matters_in_range(
     conn: &Connection,
-    range_start: &str,
-    range_end: &str,
+    start: NaiveDate,
+    end_exclusive: NaiveDate,
 ) -> AppResult<Vec<MatterSummary>> {
     let all = list_matters_on_conn(conn, Some(matter_status::COMPLETED))?;
     Ok(all
@@ -446,7 +448,7 @@ pub fn list_completed_matters_in_range(
         .filter(|m| {
             m.completed_at
                 .as_deref()
-                .map(|ts| ts >= range_start && ts < range_end)
+                .map(|ts| local_date_in_period(ts, start, end_exclusive))
                 .unwrap_or(false)
         })
         .collect())
