@@ -7,10 +7,18 @@ use app_lib::commands::analytics::{
 use app_lib::commands::schedule::{ScheduleDay, ScheduleEntry, TimeBlock};
 use app_lib::commands::settings::{HolidayEntry, NotificationSettings, Settings};
 use app_lib::commands::stats::StatsPanelData;
+use app_lib::commands::cadences::{CreateCadenceInput, UpdateCadenceInput};
+use app_lib::commands::matters::{
+    AddMatterStepInput, CreateBlankMatterInput, CreateMatterInput, UpdateMatterInput,
+};
+use app_lib::commands::playbooks::{CreatePlaybookInput, UpdatePlaybookInput};
+use app_lib::commands::evidence::AddStepLinkInput;
 use app_lib::commands::tasks::{CreateTaskInput, ListTasksFilters, SortOption, UpdateTaskInput};
 use app_lib::models::{
-    CalendarDay, Category, DailyCount, FocusSession, FocusSummary, Reminder, Statistics, Subtask,
-    SubtaskProgress, Tag, TaskSummary, TaskWithDetails,
+    AgendaItem, Cadence, CadenceProgress, CalendarDay, Category, DailyCount, FocusSession,
+    FocusSummary, MatterDetail, MatterStep, MatterStepBrief, MatterStepLink, MatterSummary,
+    Playbook, PlaybookStep, PlaybookStepInput, Reminder, Statistics, Subtask, SubtaskProgress, Tag,
+    TaskSummary, TaskWithDetails,
 };
 use specta::datatype::DataType;
 use specta::{Format, FormatError, Types};
@@ -64,7 +72,27 @@ fn main() {
         .register::<WeeklyAccuracy>()
         .register::<FocusHeatmapEntry>()
         .register::<ReviewTask>()
-        .register::<DailyReview>();
+        .register::<DailyReview>()
+        .register::<PlaybookStepInput>()
+        .register::<PlaybookStep>()
+        .register::<Playbook>()
+        .register::<CreatePlaybookInput>()
+        .register::<UpdatePlaybookInput>()
+        .register::<MatterStepLink>()
+        .register::<MatterStepBrief>()
+        .register::<MatterStep>()
+        .register::<MatterSummary>()
+        .register::<MatterDetail>()
+        .register::<CreateMatterInput>()
+        .register::<CreateBlankMatterInput>()
+        .register::<UpdateMatterInput>()
+        .register::<AddMatterStepInput>()
+        .register::<AddStepLinkInput>()
+        .register::<AgendaItem>()
+        .register::<Cadence>()
+        .register::<CadenceProgress>()
+        .register::<CreateCadenceInput>()
+        .register::<UpdateCadenceInput>();
 
     let output = Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/bindings/generated.ts");
 

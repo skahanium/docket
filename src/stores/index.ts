@@ -14,8 +14,12 @@ export {
   setActiveView,
   selectedTaskId,
   setSelectedTaskId,
+  selectedMatterId,
+  setSelectedMatterId,
   selectTask,
   deselectTask,
+  selectMatter,
+  deselectMatter,
 } from './navigation'
 
 export type { SortField, SortDir } from './filtersSort'
@@ -60,9 +64,19 @@ export {
   refetchCalendar,
   statsPanel,
   refetchStats,
+  agenda,
+  refetchAgenda,
+  matters,
+  refetchMatters,
+  playbooks,
+  refetchPlaybooks,
+  cadences,
+  refetchCadences,
+  matterDetail,
+  refetchMatterDetail,
 } from './resources'
 
-export { taskMutationEpoch, invalidateAfterTaskMutation } from './invalidate'
+export { taskMutationEpoch, invalidateAfterTaskMutation, invalidateAfterMutation } from './invalidate'
 export type { InvalidateTaskMutationOptions } from './invalidate'
 
 export { reviewOpen, setReviewOpen, scheduleDailyReviewCheck } from './appChrome'

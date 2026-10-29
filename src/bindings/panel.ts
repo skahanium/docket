@@ -19,6 +19,10 @@ export function focusTaskFromPanel(taskId: number): Promise<void> {
   return invoke<void>('focus_task_from_panel', { taskId })
 }
 
+export function focusMatterFromPanel(matterId: number): Promise<void> {
+  return invoke<void>('focus_matter_from_panel', { matterId })
+}
+
 /** 显示/隐藏桌面任务面板，返回切换后是否可见。 */
 export function toggleDesktopPanel(): Promise<boolean> {
   return invoke<boolean>('toggle_desktop_panel')

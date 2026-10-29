@@ -1,0 +1,54 @@
+.container { padding: 32px 36px; height: 100%; overflow-y: auto; }
+.title { font-size: 24px; font-weight: 700; color: var(--text-main); letter-spacing: -0.02em; }
+.lead { font-size: 14px; color: var(--text-sub); margin: 8px 0 20px; line-height: 1.6; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.input {
+  height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-family: inherit; font-size: 14px; color: var(--text-main); background: var(--bg-elevated);
+}
+.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring-focus); }
+.select {
+  height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-family: inherit; font-size: 14px; color: var(--text-main); background: var(--bg-elevated);
+}
+.btn {
+  height: 36px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-elevated); font-family: inherit; font-size: 14px; color: var(--text-main); cursor: pointer;
+}
+.btn:hover { background: var(--bg-hover); }
+.btnPrimary { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
+.btnGhost { background: transparent; }
+.card {
+  border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px;
+  background: var(--bg-elevated); margin-bottom: 10px; cursor: pointer;
+}
+.card:hover { border-color: var(--text-label); }
+.cardTitle { font-size: 15px; font-weight: 500; color: var(--text-main); }
+.cardMeta { font-size: 13px; color: var(--text-sub); margin-top: 4px; }
+.badge {
+  display: inline-flex; align-items: center; font-size: 12px; padding: 2px 8px; border-radius: 99px;
+  background: var(--warning-light); color: var(--warning); margin-left: 8px;
+}
+.danger { color: var(--danger); }
+.empty { color: var(--text-sub); font-size: 14px; padding: 24px 0; }
+.stepList { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.step {
+  display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+.stepCurrent { border-color: var(--accent); background: var(--accent-subtle); }
+.stepDone { color: var(--text-label); }
+.progress {
+  height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 8px;
+}
+.progressFill { height: 100%; background: var(--accent); }
+.linkRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.pathBroken { color: var(--danger); }
+.form { display: flex; flex-direction: column; gap: 10px; margin: 16px 0 24px; max-width: 560px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--border); background: var(--bg-elevated); border-radius: 99px;
+  padding: 4px 10px; font-size: 13px; cursor: pointer; font-family: inherit; color: var(--text-sub);
+}
+.chipOn { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }

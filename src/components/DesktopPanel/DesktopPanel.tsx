@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import styles from './DesktopPanel.module.css'
 import {
+  focusMatterFromPanel,
   focusTaskFromPanel,
   getDesktopPanelSnapshot,
   getPanelSettings,
@@ -83,8 +84,12 @@ const DesktopPanel: Component = () => {
     onCleanup(() => window.clearInterval(id))
   })
 
-  const openTask = (id: number) => {
-    void focusTaskFromPanel(id)
+  const openRow = (row: TaskPanelRow) => {
+    if (row.kind === 'matter_step' && row.matter_id != null) {
+      void focusMatterFromPanel(row.matter_id)
+      return
+    }
+    void focusTaskFromPanel(row.id)
   }
 
   const onHeaderPointerDown = (e: PointerEvent) => {
@@ -126,8 +131,8 @@ const DesktopPanel: Component = () => {
       <button
         type="button"
         class={styles.item}
-        onClick={() => openTask(task.id)}
-        aria-label={`${task.title}${overdueDays ? `，逾期 ${overdueDays} 天` : ''}`}
+        onClick={() => openRow(task)}
+        aria-label={`${task.title}${task.subtitle ? `，${task.subtitle}` : ''}${overdueDays ? `，逾期 ${overdueDays} 天` : ''}`}
       >
         <span
           class={styles.priority}
@@ -137,7 +142,10 @@ const DesktopPanel: Component = () => {
           }}
           aria-hidden
         />
-        <span class={styles.itemTitle}>{task.title}</span>
+        <span class={styles.itemTitle}>
+          {task.title}
+          {task.subtitle ? ` · ${task.subtitle}` : ''}
+        </span>
         <Show when={overdueDays != null}>
           <span class={styles.overdueBadge}>{overdueDays}天</span>
         </Show>
@@ -168,7 +176,7 @@ const DesktopPanel: Component = () => {
         data-tauri-drag-region
         onPointerDown={onHeaderPointerDown}
       >
-        <span class={styles.title}>今日任务</span>
+        <span class={styles.title}>今日调度</span>
       </header>
       <div
         class={styles.body}

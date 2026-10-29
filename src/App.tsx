@@ -6,7 +6,7 @@ import {
   activeCategoryId, setActiveCategoryId,
   activeTagId, setActiveTagId,
   searchQuery, setSearchQuery,
-  selectTask, deselectTask,
+  selectTask, deselectTask, selectMatter, deselectMatter,
   toasts,
   clearFilters,
   reviewOpen,
@@ -14,19 +14,30 @@ import {
   scheduleDailyReviewCheck,
   completeTaskFromList,
   refetchTasks,
+  refetchAgenda,
   invalidateAfterTaskMutation,
+  agenda,
+  activePriority,
+  completeMatterStep,
+  pushToast,
 } from './stores'
+import { filterAgendaItems } from './utils/agendaMap'
 import TopBar from './components/TopBar/TopBar'
 import Sidebar from './components/Sidebar/Sidebar'
 import TaskList from './components/TaskList/TaskList'
 import CreateTaskDialog from './components/CreateTaskDialog/CreateTaskDialog'
 import TaskDetail from './components/TaskDetail/TaskDetail'
 import DailyReviewDialog from './components/DailyReview/DailyReviewDialog'
+import AgendaList from './components/AgendaList/AgendaList'
+import MatterDetail from './components/MatterDetail/MatterDetail'
 
 const Calendar = lazy(() => import('./components/Calendar/Calendar'))
 const Schedule = lazy(() => import('./components/Schedule/Schedule'))
 const StatsPanel = lazy(() => import('./components/StatsPanel/StatsPanel'))
 const SettingsPanel = lazy(() => import('./components/SettingsPanel/SettingsPanel'))
+const MatterList = lazy(() => import('./components/MatterList/MatterList'))
+const PlaybookPage = lazy(() => import('./components/PlaybookPage/PlaybookPage'))
+const CadencePage = lazy(() => import('./components/CadencePage/CadencePage'))
 
 const ViewLoading: Component = () => (
   <div style={{ padding: '24px', color: 'var(--text-sub)', 'font-size': '14px' }}>加载视图…</div>
@@ -46,7 +57,7 @@ const App: Component = () => {
       const mod = e.ctrlKey || e.metaKey
       if (mod && e.key === 'n') { e.preventDefault(); openDialog() }
       else if (mod && e.key === 'f') { e.preventDefault(); (document.querySelector<HTMLInputElement>('input[placeholder*="搜索"]'))?.focus() }
-      else if (e.key === 'Escape') { deselectTask(); setDialogOpen(false); setReviewOpen(false) }
+      else if (e.key === 'Escape') { deselectTask(); deselectMatter(); setDialogOpen(false); setReviewOpen(false) }
     }
     document.addEventListener('keydown', handleKey)
     const u1 = listen<string>('navigate', (e) => { if (e.payload === 'today') setActiveView('today') })
@@ -56,13 +67,19 @@ const App: Component = () => {
       setActiveView('today')
       selectTask(e.payload)
     })
-    const u4 = listen('tasks-changed', () => invalidateAfterTaskMutation())
+    const u4 = listen<number>('open-matter', (e) => {
+      clearFilters()
+      setActiveView('today')
+      selectMatter(e.payload)
+    })
+    const u5 = listen('tasks-changed', () => invalidateAfterTaskMutation())
     onCleanup(() => {
       document.removeEventListener('keydown', handleKey)
       u1.then(fn => fn())
       u2.then(fn => fn())
       u3.then(fn => fn())
       u4.then(fn => fn())
+      u5.then(fn => fn())
     })
 
     scheduleDailyReviewCheck()
@@ -74,8 +91,8 @@ const App: Component = () => {
 
   const viewTitle = () => {
     switch (activeView?.() ?? 'all') {
-      case 'today': return '今日任务'
-      case 'overdue': return '逾期任务'
+      case 'today': return '今日调度'
+      case 'overdue': return '逾期'
       case 'schedule': return '日程'
       case 'archive': return '归档'
       default: return '全部任务'
@@ -124,6 +141,45 @@ const App: Component = () => {
                 <SettingsPanel />
               </Suspense>
             </Match>
+            <Match when={(activeView?.() ?? 'all') === 'matters'}>
+              <Suspense fallback={<ViewLoading />}>
+                <MatterList />
+              </Suspense>
+            </Match>
+            <Match when={(activeView?.() ?? 'all') === 'playbooks'}>
+              <Suspense fallback={<ViewLoading />}>
+                <PlaybookPage />
+              </Suspense>
+            </Match>
+            <Match when={(activeView?.() ?? 'all') === 'cadences'}>
+              <Suspense fallback={<ViewLoading />}>
+                <CadencePage />
+              </Suspense>
+            </Match>
+            <Match when={(activeView?.() ?? 'all') === 'today' || (activeView?.() ?? 'all') === 'overdue'}>
+              <AgendaList
+                title={viewTitle()}
+                items={filterAgendaItems(agenda() ?? [], { search: searchQuery() ?? '', priority: activePriority() })}
+                loading={agenda?.loading ?? false}
+                error={agenda?.error ? String(agenda.error) : null}
+                onToggle={(item) => {
+                  if (item.kind === 'task') void completeTaskFromList(item.id)
+                  else {
+                    void completeMatterStep(item.id)
+                      .then(() => {
+                        pushToast('success', '已完成当前步')
+                        invalidateAfterTaskMutation()
+                      })
+                      .catch((e) => pushToast('error', String(e)))
+                  }
+                }}
+                onClick={(item) => {
+                  if (item.kind === 'task') selectTask(item.id)
+                  else if (item.matter_id != null) selectMatter(item.matter_id)
+                }}
+                onRetry={refetchAgenda}
+              />
+            </Match>
             <Match when={true}>
               <TaskList
                 title={viewTitle()}
@@ -147,6 +203,7 @@ const App: Component = () => {
       </div>
 
       <TaskDetail />
+      <MatterDetail />
       <Show when={dialogOpen()}>
         <CreateTaskDialog open={true} defaultDueDate={dialogDueDate()} onClose={() => setDialogOpen(false)} />
       </Show>

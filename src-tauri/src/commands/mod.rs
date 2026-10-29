@@ -1,8 +1,13 @@
+pub mod agenda;
 pub mod analytics;
+pub mod cadences;
 pub mod calendar;
 pub mod desktop_panel;
 pub mod categories;
+pub mod evidence;
 pub mod focus;
+pub mod matters;
+pub mod playbooks;
 pub mod reminders;
 pub mod schedule;
 pub mod settings;

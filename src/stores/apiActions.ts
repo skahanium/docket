@@ -55,6 +55,33 @@ export const revealDatabaseFolder = api.revealDatabaseFolder
 
 export const getDesktopPanelSnapshot = api.getDesktopPanelSnapshot
 export const focusTaskFromPanel = api.focusTaskFromPanel
+export const focusMatterFromPanel = api.focusMatterFromPanel
+
+export const listAgenda = api.listAgenda
+export const listPlaybooks = api.listPlaybooks
+export const createPlaybook = api.createPlaybook
+export const updatePlaybook = api.updatePlaybook
+export const setPlaybookSteps = api.setPlaybookSteps
+export const listMatters = api.listMatters
+export const createMatter = api.createMatter
+export const createBlankMatter = api.createBlankMatter
+export const getMatter = api.getMatter
+export const updateMatter = api.updateMatter
+export const completeMatterStep = api.completeMatterStep
+export const skipMatterStep = api.skipMatterStep
+export const reopenMatterStep = api.reopenMatterStep
+export const addMatterStep = api.addMatterStep
+export const addTagToMatter = api.addTagToMatter
+export const removeTagFromMatter = api.removeTagFromMatter
+export const listCadences = api.listCadences
+export const createCadence = api.createCadence
+export const updateCadence = api.updateCadence
+export const getCadenceProgress = api.getCadenceProgress
+export const addStepLink = api.addStepLink
+export const removeStepLink = api.removeStepLink
+export const openStepLink = api.openStepLink
+export const revealStepLink = api.revealStepLink
+export const pickEvidencePath = api.pickEvidencePath
 
 export const getNotificationSettings = api.getNotificationSettings
 export const updateNotificationSettings = api.updateNotificationSettings

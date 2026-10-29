@@ -1,10 +1,15 @@
 import { createSignal } from 'solid-js'
-import { activeView, selectedTaskId } from './navigation'
+import { activeView, selectedMatterId, selectedTaskId } from './navigation'
 import {
   refetchTasks,
   refetchCalendar,
   refetchDetail,
   refetchStats,
+  refetchAgenda,
+  refetchMatters,
+  refetchPlaybooks,
+  refetchCadences,
+  refetchMatterDetail,
 } from './resources'
 
 /** Bumped on every task mutation so stats-panel auxiliary resources re-fetch. */
@@ -49,5 +54,13 @@ export function invalidateAfterTaskMutation(
   if (calendar) void refetchCalendar()
   if (detail) void refetchDetail()
   if (stats) void refetchStats()
+  void refetchAgenda()
+  void refetchMatters()
+  void refetchPlaybooks()
+  void refetchCadences()
+  if (selectedMatterId() != null) void refetchMatterDetail()
   bumpTaskMutationEpoch?.()
 }
+
+/** Alias used after matter / playbook / cadence writes. */
+export const invalidateAfterMutation = invalidateAfterTaskMutation

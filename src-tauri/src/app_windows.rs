@@ -170,6 +170,11 @@ pub fn open_task_in_main(app: &AppHandle, task_id: i64) {
     let _ = app.emit_to("main", "open-task", task_id);
 }
 
+pub fn open_matter_in_main(app: &AppHandle, matter_id: i64) {
+    show_main_window(app);
+    let _ = app.emit_to("main", "open-matter", matter_id);
+}
+
 pub fn is_panel_visible(app: &AppHandle) -> bool {
     app.get_webview_window("panel")
         .and_then(|w| w.is_visible().ok())

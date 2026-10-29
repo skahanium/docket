@@ -12,6 +12,15 @@ pub enum AppError {
     #[error("task not found (id={id})")]
     TaskNotFound { id: i64 },
 
+    #[error("matter not found (id={id})")]
+    MatterNotFound { id: i64 },
+
+    #[error("playbook not found (id={id})")]
+    PlaybookNotFound { id: i64 },
+
+    #[error("cadence not found (id={id})")]
+    CadenceNotFound { id: i64 },
+
     #[error("invalid date: {0}")]
     InvalidDate(String),
 
@@ -41,5 +50,12 @@ mod tests {
     fn displays_task_not_found() {
         let err = AppError::TaskNotFound { id: 42 };
         assert!(err.to_string().contains("42"));
+    }
+
+    #[test]
+    fn displays_matter_playbook_cadence_not_found() {
+        assert!(AppError::MatterNotFound { id: 1 }.to_string().contains("1"));
+        assert!(AppError::PlaybookNotFound { id: 2 }.to_string().contains("2"));
+        assert!(AppError::CadenceNotFound { id: 3 }.to_string().contains("3"));
     }
 }

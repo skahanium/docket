@@ -1,6 +1,14 @@
-//! Shared "today" / overdue predicates and local-calendar timestamp bounds.
+//! Shared "today" / overdue predicates, local-calendar bounds, and agenda union.
 
+use crate::db::{matter_status, step_status, task_status};
+use crate::error::{AppError, AppResult};
+use crate::evidence::{load_links_for_steps, missing_evidence};
+use crate::models::AgendaItem;
 use chrono::{DateTime, Days, Local, NaiveDate, TimeZone, Timelike};
+use rusqlite::Connection;
+
+pub const AGENDA_KIND_TASK: &str = "task";
+pub const AGENDA_KIND_MATTER_STEP: &str = "matter_step";
 
 fn qualify(alias: &str, column: &str) -> String {
     if alias.is_empty() {
@@ -94,6 +102,120 @@ pub fn rfc3339_to_local_hour(ts: &str) -> Option<i32> {
         .map(|dt| dt.with_timezone(&Local).hour() as i32)
 }
 
+fn list_task_agenda(
+    conn: &Connection,
+    today: &str,
+    overdue_only: bool,
+) -> AppResult<Vec<AgendaItem>> {
+    let extra = if overdue_only {
+        overdue_active_predicate("", "?2")
+    } else {
+        today_active_predicate("", "?2")
+    };
+    let sql = format!(
+        "SELECT id, title, due_date, priority FROM tasks
+         WHERE status = ?1 AND {extra}
+         ORDER BY priority DESC, due_date ASC, title ASC"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(rusqlite::params![task_status::ACTIVE, today], |row| {
+        Ok(AgendaItem {
+            kind: AGENDA_KIND_TASK.into(),
+            id: row.get(0)?,
+            title: row.get(1)?,
+            subtitle: None,
+            due_date: row.get(2)?,
+            priority: row.get(3)?,
+            matter_id: None,
+            missing_evidence: false,
+        })
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        out.push(row?);
+    }
+    Ok(out)
+}
+
+fn list_current_step_agenda(
+    conn: &Connection,
+    today: &str,
+    overdue_only: bool,
+) -> AppResult<Vec<AgendaItem>> {
+    let overdue_clause = if overdue_only {
+        "AND (s.due_date IS NOT NULL AND s.due_date < ?2 OR m.due_date IS NOT NULL AND m.due_date < ?2)"
+    } else {
+        ""
+    };
+    let sql = format!(
+        "SELECT s.id, s.title, s.due_date, s.evidence_required, m.id, m.title, m.priority, m.due_date
+         FROM matter_steps s
+         JOIN matters m ON m.id = s.matter_id
+         WHERE m.status = ?1
+           AND s.status = ?3
+           AND s.id = (
+             SELECT s2.id FROM matter_steps s2
+             WHERE s2.matter_id = s.matter_id AND s2.status = ?3
+             ORDER BY s2.sort_order ASC, s2.id ASC LIMIT 1
+           )
+           {overdue_clause}
+         ORDER BY m.priority DESC, s.due_date ASC, s.id ASC"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(
+        rusqlite::params![matter_status::ACTIVE, today, step_status::PENDING],
+        map_step_row,
+    )?;
+
+    let mut items = Vec::new();
+    for row in rows {
+        items.push(row?);
+    }
+    let step_ids: Vec<i64> = items.iter().map(|i| i.id).collect();
+    let links = load_links_for_steps(conn, &step_ids)?;
+    for item in &mut items {
+        let n = links.get(&item.id).map(|v| v.len()).unwrap_or(0);
+        let required = item.missing_evidence;
+        item.missing_evidence = missing_evidence(required, n);
+    }
+    Ok(items)
+}
+
+fn map_step_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<AgendaItem> {
+    let evidence_required: i32 = row.get(3)?;
+    let step_due: Option<String> = row.get(2)?;
+    let matter_due: Option<String> = row.get(7)?;
+    Ok(AgendaItem {
+        kind: AGENDA_KIND_MATTER_STEP.into(),
+        id: row.get(0)?,
+        title: row.get(1)?,
+        subtitle: row.get(5)?,
+        due_date: step_due.or(matter_due),
+        priority: row.get(6)?,
+        matter_id: row.get(4)?,
+        missing_evidence: evidence_required != 0,
+    })
+}
+
+/// `view` is `today` or `overdue`. Today includes every active matter's current step.
+pub fn list_agenda_on_conn(conn: &Connection, view: &str) -> AppResult<Vec<AgendaItem>> {
+    let today = crate::time::local_today_date();
+    let overdue_only = match view {
+        "today" => false,
+        "overdue" => true,
+        _ => return Err(AppError::message("议程视图须为 today 或 overdue")),
+    };
+    let mut items = list_task_agenda(conn, &today, overdue_only)?;
+    items.extend(list_current_step_agenda(conn, &today, overdue_only)?);
+    items.sort_by(|a, b| {
+        b.priority
+            .cmp(&a.priority)
+            .then_with(|| a.due_date.cmp(&b.due_date))
+            .then_with(|| a.title.cmp(&b.title))
+    });
+    Ok(items)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,6 +238,49 @@ mod tests {
         let (start, end) = local_day_bounds("2026-10-28").unwrap();
         assert!(start < end);
         assert!(start.contains("2026-10-2"));
+    }
+
+    #[test]
+    fn list_agenda_today_includes_current_step_not_completed() {
+        use crate::db;
+        use crate::matter::{complete_matter_step_on_conn, current_pending_step};
+        use crate::models::PlaybookStepInput;
+        use crate::playbook::{
+            create_playbook_on_conn, instantiate_matter_on_conn, set_playbook_steps_on_conn,
+        };
+        use rusqlite::Connection;
+
+        let conn = Connection::open_in_memory().unwrap();
+        db::init_db(&conn).unwrap();
+        let pb = create_playbook_on_conn(&conn, "议程模板").unwrap();
+        set_playbook_steps_on_conn(
+            &conn,
+            pb,
+            &[
+                PlaybookStepInput {
+                    title: "当前步".into(),
+                    optional: false,
+                    evidence_required: false,
+                    estimated_minutes: None,
+                },
+                PlaybookStepInput {
+                    title: "下一步".into(),
+                    optional: false,
+                    evidence_required: false,
+                    estimated_minutes: None,
+                },
+            ],
+        )
+        .unwrap();
+        let mid = instantiate_matter_on_conn(&conn, pb, "议程事项", 2, None, None).unwrap();
+        let today = list_agenda_on_conn(&conn, "today").unwrap();
+        assert!(today.iter().any(|i| i.kind == AGENDA_KIND_MATTER_STEP && i.title == "当前步"));
+        assert!(!today.iter().any(|i| i.title == "下一步"));
+        let first = current_pending_step(&conn, mid).unwrap().unwrap();
+        complete_matter_step_on_conn(&conn, first.id).unwrap();
+        let after = list_agenda_on_conn(&conn, "today").unwrap();
+        assert!(after.iter().any(|i| i.title == "下一步"));
+        assert!(!after.iter().any(|i| i.title == "当前步"));
     }
 
     #[test]

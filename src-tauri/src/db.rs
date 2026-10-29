@@ -42,6 +42,29 @@ pub mod task_status {
     pub const ARCHIVED: &str = "archived";
 }
 
+pub mod matter_status {
+    pub const ACTIVE: &str = "active";
+    pub const COMPLETED: &str = "completed";
+    pub const ARCHIVED: &str = "archived";
+}
+
+pub mod step_status {
+    pub const PENDING: &str = "pending";
+    pub const COMPLETED: &str = "completed";
+    pub const SKIPPED: &str = "skipped";
+}
+
+pub mod link_kind {
+    pub const FILE: &str = "file";
+    pub const FOLDER: &str = "folder";
+}
+
+pub mod cadence_period {
+    pub const MONTH: &str = "month";
+    pub const QUARTER: &str = "quarter";
+    pub const YEAR: &str = "year";
+}
+
 pub fn init_db(conn: &Connection) -> SqlResult<()> {
     conn.execute_batch("PRAGMA journal_mode=WAL;")?;
     conn.execute_batch("PRAGMA foreign_keys=ON;")?;
@@ -190,6 +213,110 @@ pub fn init_db(conn: &Connection) -> SqlResult<()> {
 
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute("INSERT INTO _migrations (version, applied_at) VALUES (4, ?1)", [&now])?;
+    }
+
+    // Version 5: playbooks, matters, step evidence, cadences
+    if current_version < 5 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS playbooks (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                title       TEXT NOT NULL,
+                archived_at TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS playbook_steps (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                playbook_id        INTEGER NOT NULL,
+                title              TEXT NOT NULL,
+                sort_order         INTEGER NOT NULL DEFAULT 0,
+                optional           INTEGER NOT NULL DEFAULT 0,
+                evidence_required  INTEGER NOT NULL DEFAULT 0,
+                estimated_minutes  INTEGER,
+                FOREIGN KEY (playbook_id) REFERENCES playbooks(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS matters (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                playbook_id   INTEGER,
+                title         TEXT NOT NULL,
+                status        TEXT NOT NULL DEFAULT 'active',
+                priority      INTEGER NOT NULL DEFAULT 0,
+                category_id   INTEGER,
+                due_date      TEXT,
+                created_at    TEXT NOT NULL,
+                updated_at    TEXT NOT NULL,
+                completed_at  TEXT,
+                archived_at   TEXT,
+                FOREIGN KEY (playbook_id) REFERENCES playbooks(id) ON DELETE SET NULL,
+                FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS matter_tags (
+                matter_id INTEGER NOT NULL,
+                tag_id    INTEGER NOT NULL,
+                PRIMARY KEY (matter_id, tag_id),
+                FOREIGN KEY (matter_id) REFERENCES matters(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS matter_steps (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                matter_id          INTEGER NOT NULL,
+                playbook_step_id   INTEGER,
+                title              TEXT NOT NULL,
+                sort_order         INTEGER NOT NULL DEFAULT 0,
+                evidence_required  INTEGER NOT NULL DEFAULT 0,
+                status             TEXT NOT NULL DEFAULT 'pending',
+                due_date           TEXT,
+                estimated_minutes  INTEGER,
+                completed_at       TEXT,
+                FOREIGN KEY (matter_id) REFERENCES matters(id) ON DELETE CASCADE,
+                FOREIGN KEY (playbook_step_id) REFERENCES playbook_steps(id) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS matter_step_links (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                matter_step_id  INTEGER NOT NULL,
+                kind            TEXT NOT NULL,
+                path            TEXT NOT NULL,
+                created_at      TEXT NOT NULL,
+                FOREIGN KEY (matter_step_id) REFERENCES matter_steps(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS cadences (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                title         TEXT NOT NULL,
+                period        TEXT NOT NULL,
+                target_count  INTEGER,
+                created_at    TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS cadence_playbooks (
+                cadence_id   INTEGER NOT NULL,
+                playbook_id  INTEGER NOT NULL,
+                PRIMARY KEY (cadence_id, playbook_id),
+                FOREIGN KEY (cadence_id) REFERENCES cadences(id) ON DELETE CASCADE,
+                FOREIGN KEY (playbook_id) REFERENCES playbooks(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS cadence_tags (
+                cadence_id INTEGER NOT NULL,
+                tag_id     INTEGER NOT NULL,
+                PRIMARY KEY (cadence_id, tag_id),
+                FOREIGN KEY (cadence_id) REFERENCES cadences(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_matter_steps_current
+                ON matter_steps(matter_id, status, sort_order);
+            CREATE INDEX IF NOT EXISTS idx_matters_status_completed
+                ON matters(status, completed_at);
+            CREATE INDEX IF NOT EXISTS idx_matter_step_links_step
+                ON matter_step_links(matter_step_id);",
+        )?;
+
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute("INSERT INTO _migrations (version, applied_at) VALUES (5, ?1)", [&now])?;
     }
 
     Ok(())
@@ -523,6 +650,15 @@ mod tests {
         assert!(tables.contains(&"settings".to_string()));
         assert!(tables.contains(&"holidays".to_string()));
         assert!(tables.contains(&"schedule_entries".to_string()));
+        assert!(tables.contains(&"playbooks".to_string()));
+        assert!(tables.contains(&"playbook_steps".to_string()));
+        assert!(tables.contains(&"matters".to_string()));
+        assert!(tables.contains(&"matter_tags".to_string()));
+        assert!(tables.contains(&"matter_steps".to_string()));
+        assert!(tables.contains(&"matter_step_links".to_string()));
+        assert!(tables.contains(&"cadences".to_string()));
+        assert!(tables.contains(&"cadence_playbooks".to_string()));
+        assert!(tables.contains(&"cadence_tags".to_string()));
         assert!(tables.contains(&"_migrations".to_string()));
     }
 
@@ -544,6 +680,9 @@ mod tests {
         assert!(indexes.contains(&"idx_tasks_status".to_string()));
         assert!(indexes.contains(&"idx_task_tags_task_id".to_string()));
         assert!(indexes.contains(&"idx_subtasks_task_id".to_string()));
+        assert!(indexes.contains(&"idx_matter_steps_current".to_string()));
+        assert!(indexes.contains(&"idx_matters_status_completed".to_string()));
+        assert!(indexes.contains(&"idx_matter_step_links_step".to_string()));
     }
 
     #[test]

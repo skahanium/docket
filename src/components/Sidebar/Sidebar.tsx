@@ -20,6 +20,8 @@ const VIEWS: { key: ViewKind; label: string }[] = [
   { key: 'all', label: '全部' },
   { key: 'today', label: '今日' },
   { key: 'overdue', label: '逾期' },
+  { key: 'matters', label: '事项' },
+  { key: 'playbooks', label: '模板' },
   { key: 'schedule', label: '日程' },
   { key: 'calendar', label: '日历' },
 ]
@@ -102,6 +104,7 @@ const Sidebar: Component<Props> = (props) => {
         <div class={styles.divider} />
         <nav class={styles.nav} style={{ 'margin-top': '8px' }}>
           {([
+            { key: 'cadences' as ViewKind, label: '指标' },
             { key: 'stats' as ViewKind, label: '统计' },
             { key: 'archive' as ViewKind, label: '归档' },
             { key: 'settings' as ViewKind, label: '设置' },

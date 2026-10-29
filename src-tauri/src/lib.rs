@@ -1,10 +1,14 @@
 pub mod agenda;
 mod app_windows;
 pub mod bindings_export;
+pub mod cadence;
 pub mod commands;
 pub mod db;
 mod error;
+pub mod evidence;
+pub mod matter;
 pub mod models;
+pub mod playbook;
 mod recurrence;
 mod scheduler;
 mod time;
@@ -101,6 +105,7 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -218,8 +223,36 @@ pub fn run() {
             commands::desktop_panel::get_panel_settings,
             commands::desktop_panel::update_panel_settings,
             commands::desktop_panel::focus_task_from_panel,
+            commands::desktop_panel::focus_matter_from_panel,
             commands::desktop_panel::toggle_desktop_panel,
             commands::desktop_panel::is_desktop_panel_visible,
+            commands::playbooks::list_playbooks,
+            commands::playbooks::create_playbook,
+            commands::playbooks::update_playbook,
+            commands::playbooks::set_playbook_steps,
+            commands::playbooks::get_playbook,
+            commands::matters::list_matters,
+            commands::matters::create_matter,
+            commands::matters::create_blank_matter,
+            commands::matters::get_matter,
+            commands::matters::update_matter,
+            commands::matters::complete_matter_step,
+            commands::matters::skip_matter_step,
+            commands::matters::reopen_matter_step,
+            commands::matters::add_matter_step,
+            commands::matters::add_tag_to_matter,
+            commands::matters::remove_tag_from_matter,
+            commands::agenda::list_agenda,
+            commands::cadences::list_cadences,
+            commands::cadences::create_cadence,
+            commands::cadences::update_cadence,
+            commands::cadences::get_cadence_progress,
+            commands::evidence::add_step_link,
+            commands::evidence::remove_step_link,
+            commands::evidence::open_step_link,
+            commands::evidence::reveal_step_link,
+            commands::evidence::pick_evidence_path,
+            commands::evidence::get_step_link,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

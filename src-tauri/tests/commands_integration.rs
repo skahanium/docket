@@ -324,3 +324,94 @@ fn create_task_rejects_blank_title() {
     .unwrap_err();
     assert!(err.to_string().contains("标题"));
 }
+
+fn two_step_playbook(conn: &rusqlite::Connection) -> i64 {
+    use app_lib::models::PlaybookStepInput;
+    use app_lib::playbook::{create_playbook_on_conn, set_playbook_steps_on_conn};
+    let pb = create_playbook_on_conn(conn, "集成模板").unwrap();
+    set_playbook_steps_on_conn(
+        conn,
+        pb,
+        &[
+            PlaybookStepInput {
+                title: "收材料".into(),
+                optional: false,
+                evidence_required: true,
+                estimated_minutes: Some(15),
+            },
+            PlaybookStepInput {
+                title: "办结".into(),
+                optional: false,
+                evidence_required: false,
+                estimated_minutes: None,
+            },
+        ],
+    )
+    .unwrap();
+    pb
+}
+
+#[test]
+fn matter_flow_current_step_and_agenda() {
+    use app_lib::agenda::{list_agenda_on_conn, AGENDA_KIND_MATTER_STEP};
+    use app_lib::matter::{
+        complete_matter_step_on_conn, current_pending_step, get_matter_on_conn,
+        skip_matter_step_on_conn,
+    };
+    use app_lib::playbook::instantiate_matter_on_conn;
+
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+    let pb = two_step_playbook(&conn);
+    let mid = instantiate_matter_on_conn(&conn, pb, "集成事项", 1, None, None).unwrap();
+    let first = current_pending_step(&conn, mid).unwrap().unwrap();
+    assert_eq!(first.title, "收材料");
+
+    let today = list_agenda_on_conn(&conn, "today").unwrap();
+    assert!(today
+        .iter()
+        .any(|i| i.kind == AGENDA_KIND_MATTER_STEP && i.title == "收材料"));
+    assert!(!today.iter().any(|i| i.title == "办结"));
+
+    skip_matter_step_on_conn(&conn, first.id).unwrap();
+    let second = current_pending_step(&conn, mid).unwrap().unwrap();
+    assert_eq!(second.title, "办结");
+    complete_matter_step_on_conn(&conn, second.id).unwrap();
+
+    let detail = get_matter_on_conn(&conn, mid).unwrap();
+    assert_eq!(detail.status, "completed");
+    assert!(detail.completed_at.is_some());
+    assert_eq!(detail.playbook_id, Some(pb));
+
+    let after = list_agenda_on_conn(&conn, "today").unwrap();
+    assert!(!after.iter().any(|i| i.matter_id == Some(mid)));
+}
+
+#[test]
+fn cadence_blank_matter_only_in_open_filter() {
+    use app_lib::cadence::{cadence_progress_on_conn, create_cadence_on_conn};
+    use app_lib::matter::{
+        add_matter_step_on_conn, complete_matter_step_on_conn, create_blank_matter_on_conn,
+        current_pending_step,
+    };
+    use app_lib::playbook::instantiate_matter_on_conn;
+
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+    let pb = two_step_playbook(&conn);
+    let mid = instantiate_matter_on_conn(&conn, pb, "模板事项", 0, None, None).unwrap();
+    while let Some(s) = current_pending_step(&conn, mid).unwrap() {
+        complete_matter_step_on_conn(&conn, s.id).unwrap();
+    }
+    let blank = create_blank_matter_on_conn(&conn, "空白", 0, None, None).unwrap();
+    let step = add_matter_step_on_conn(&conn, blank, "独自一步", false, None, None).unwrap();
+    complete_matter_step_on_conn(&conn, step).unwrap();
+
+    let open = create_cadence_on_conn(&conn, "不限", "month", None, &[], &[]).unwrap();
+    let limited = create_cadence_on_conn(&conn, "限模板", "month", None, &[pb], &[]).unwrap();
+    let today = app_lib::local_today_date();
+    let open_p = cadence_progress_on_conn(&conn, open, &today).unwrap();
+    let lim_p = cadence_progress_on_conn(&conn, limited, &today).unwrap();
+    assert!(open_p.matching_matters.iter().any(|m| m.playbook_id.is_none()));
+    assert!(lim_p.matching_matters.iter().all(|m| m.playbook_id == Some(pb)));
+}

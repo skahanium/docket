@@ -5,7 +5,9 @@
 ## 特性
 
 - 完全离线运行，数据存储在本地 SQLite 数据库（WAL 模式）；界面使用系统字体，启动不访问 CDN
-- 任务管理：创建、编辑、完成、归档、重复规则；「今日 / 逾期」按本机日历日计算
+- 任务管理：创建、编辑、完成、归档、重复规则；「今日 / 逾期」按本机日历日计算。琐碎工作用任务；有程序的工作用**事项**
+- **流程模板**与**事项**：从模板实例化或空白加步；今日一事一步（当前未完成步）；步骤可关联本地文件/文件夹作依据（只记路径，不拷贝）
+- **周期指标**：月/季/年单独一面，按办结事项自动计数（不进今日）
 - 子任务：可追踪进度，列表一次查询批量加载
 - 日历视图：月历网格、拖拽改期
 - 日程排程：按工作日/节假日自动排程、上午/下午时间块
@@ -28,6 +30,8 @@
 | 样式     | Tailwind CSS v4 + CSS Modules |
 | 数据库   | SQLite（rusqlite bundled，单文件 `docket.db`） |
 | 通知     | tauri-plugin-notification（提醒后台线程） |
+| 选路径   | tauri-plugin-dialog（仅 `dialog:allow-open`） |
+| 打开路径 | tauri-plugin-opener |
 
 ## 快速开始
 
@@ -60,22 +64,22 @@ npm run check:bindings
 ```
 src-tauri/src/
 ├── main.rs / lib.rs    # 入口、托盘、命令注册
-├── db.rs               # 迁移、索引、节假日种子、is_workday
-├── models.rs           # Serde 领域模型
+├── db.rs               # 迁移 v1–v5、索引、节假日种子、is_workday
+├── models.rs           # Serde 领域模型（任务 / 事项 / 模板 / 指标）
+├── agenda.rs           # 今日/逾期谓词、本地日边界、AgendaItem 合并
+├── playbook.rs / matter.rs / cadence.rs / evidence.rs
 ├── recurrence.rs       # 重复任务日期计算
 ├── scheduler.rs        # 提醒轮询（tauri-plugin-notification）
 ├── bindings_export.rs  # Specta TS 导出后处理
-├── time.rs             # HH:MM 时间工具（排程/分析共用）
+├── time.rs             # 本地日历日与 HH:MM
 └── commands/
     ├── tasks.rs        # 任务 CRUD、批量列表查询
+    ├── playbooks.rs / matters.rs / cadences.rs / evidence.rs / agenda.rs
     ├── subtasks.rs
     ├── categories.rs / tags.rs
-    ├── calendar.rs / stats.rs   # get_stats_panel 合并统计 IPC
-    ├── schedule.rs     # 日程排程
-    ├── focus.rs
-    ├── reminders.rs
-    ├── settings.rs     # 工作时间、节假日、数据库路径
-    ├── analytics.rs    # 负载摘要、每日回顾（统计走 stats.rs）
+    ├── calendar.rs / stats.rs
+    ├── schedule.rs / focus.rs / reminders.rs
+    ├── settings.rs / analytics.rs / desktop_panel.rs
 
 src/
 ├── App.tsx / focus.tsx
@@ -110,14 +114,19 @@ src/
 | 领域 | 代表命令 | 说明 |
 |------|----------|------|
 | 任务 | `list_tasks`, `create_task`, … | 列表为批量查询，无 N+1 |
+| 议程 | `list_agenda` | 今日/逾期：任务谓词 ∪ 各进行中事项的当前步 |
+| 模板 | `list_playbooks`, `create_playbook`, `set_playbook_steps` | 实例化时拷贝步骤；创建后不能改 `playbook_id` |
+| 事项 | `list_matters`, `create_matter`, `create_blank_matter`, `complete_matter_step`, `skip_matter_step`, `reopen_matter_step` | 与 tasks 分表；一事一步 |
+| 依据 | `add_step_link`, `remove_step_link`, `open_step_link`, `reveal_step_link`, `pick_evidence_path` | 只存绝对路径；dialog 选路径，opener 打开 |
+| 指标 | `list_cadences`, `create_cadence`, `get_cadence_progress` | 查询办结事项，不是累加器；不进今日 |
 | 统计 | `get_stats_panel` | 一次返回统计卡片、周预估/实际、专注热力图 |
 | 设置 | `get_settings`, `get_notification_settings`, `get_database_path`, … | 设置页；节假日同步需用户确认（S2） |
-| 桌面面板 | `get_desktop_panel_snapshot`, `focus_task_from_panel` | 托盘切换显示；只读 |
-| 备份 | （无 JSON 命令） | 设置页展示/打开 `docket.db` 路径，直接复制文件即可 |
+| 桌面面板 | `get_desktop_panel_snapshot`, `focus_task_from_panel`, `focus_matter_from_panel` | 托盘切换显示；只读调度清单 |
+| 备份 | （无 JSON 命令） | 设置页展示/打开 `docket.db` 路径，直接复制文件即可；**不含**事项依据指向的卷宗文件 |
 
 `bindings/types.ts` 重新导出 `generated.ts`（`npm run generate:bindings` / `npm run check:bindings`）。**不提供** JSON 导入导出。长任务列表 ≥40 条时窗口化虚拟滚动。任务变更后调用 `invalidateAfterTaskMutation()` 刷新多视图。
 
-> `docs/superpowers/` 为早期规划稿，可能与当前实现不一致；**以本 README 与代码为准**。
+> 现行设计见 [`docs/plans/2026-10-29-matters-playbooks-cadences.md`](docs/plans/2026-10-29-matters-playbooks-cadences.md)。`docs/superpowers/` 为早期规划稿（任务-only 设想已被事项模型取代）；**以本 README、`docs/README.md` 与代码为准**。
 
 ### 错误处理（Rust）
 
@@ -126,7 +135,7 @@ src/
 ## 数据库
 
 - 路径：系统应用数据目录下的 `docket.db`
-- 迁移：`_migrations` 表版本化（当前 v4 含查询索引）
+- 迁移：`_migrations` 表版本化（当前 **v5**：流程模板、事项、步骤依据、周期指标）
 - 完整性：启动时 `PRAGMA integrity_check`
 
 ## 许可证

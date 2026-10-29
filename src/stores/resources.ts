@@ -1,6 +1,6 @@
 import { createResource, createMemo, createEffect } from 'solid-js'
 import * as api from '../bindings/commands'
-import { activeView, selectedTaskId } from './navigation'
+import { activeView, selectedMatterId, selectedTaskId } from './navigation'
 import {
   activeCategoryId,
   activeTagId,
@@ -11,6 +11,7 @@ import {
 } from './filtersSort'
 import { selectedDate, calendarYear, calendarMonth } from './calendarUi'
 import { buildTaskListFilters } from './taskFilters'
+import type { AgendaItem, Cadence, MatterDetail, MatterSummary, Playbook } from '../bindings/types'
 
 export let tasks: ReturnType<typeof createResource<api.TaskSummary[]>>[0]
 export let refetchTasks: ReturnType<typeof createResource<api.TaskSummary[]>>[1]['refetch']
@@ -24,6 +25,16 @@ export let calendarData: ReturnType<typeof createResource<api.CalendarDayData[]>
 export let refetchCalendar: ReturnType<typeof createResource<api.CalendarDayData[]>>[1]['refetch']
 export let statsPanel: ReturnType<typeof createResource<api.StatsPanelData | null>>[0]
 export let refetchStats: ReturnType<typeof createResource<api.StatsPanelData | null>>[1]['refetch']
+export let agenda: ReturnType<typeof createResource<AgendaItem[]>>[0]
+export let refetchAgenda: ReturnType<typeof createResource<AgendaItem[]>>[1]['refetch']
+export let matters: ReturnType<typeof createResource<MatterSummary[]>>[0]
+export let refetchMatters: ReturnType<typeof createResource<MatterSummary[]>>[1]['refetch']
+export let playbooks: ReturnType<typeof createResource<Playbook[]>>[0]
+export let refetchPlaybooks: ReturnType<typeof createResource<Playbook[]>>[1]['refetch']
+export let cadences: ReturnType<typeof createResource<Cadence[]>>[0]
+export let refetchCadences: ReturnType<typeof createResource<Cadence[]>>[1]['refetch']
+export let matterDetail: ReturnType<typeof createResource<MatterDetail | null>>[0]
+export let refetchMatterDetail: ReturnType<typeof createResource<MatterDetail | null>>[1]['refetch']
 
 export function installResources(): void {
   const taskFilters = createMemo(() =>
@@ -83,4 +94,47 @@ export function installResources(): void {
   )
 
   createEffect(() => { if (activeView() === 'stats') refetchStats() })
+
+  ;[agenda, { refetch: refetchAgenda }] = createResource(
+    () => {
+      const view = activeView()
+      if (view !== 'today' && view !== 'overdue') return undefined
+      return view
+    },
+    (view) => api.listAgenda(view),
+    { initialValue: [] },
+  )
+
+  ;[matters, { refetch: refetchMatters }] = createResource(
+    () => {
+      const view = activeView()
+      if (view !== 'matters' && selectedMatterId() == null) return undefined
+      return true
+    },
+    () => api.listMatters(),
+    { initialValue: [] },
+  )
+
+  ;[playbooks, { refetch: refetchPlaybooks }] = createResource(
+    () => {
+      const view = activeView()
+      if (view !== 'playbooks' && view !== 'cadences' && view !== 'matters' && selectedMatterId() == null) {
+        return undefined
+      }
+      return true
+    },
+    () => api.listPlaybooks(true),
+    { initialValue: [] },
+  )
+
+  ;[cadences, { refetch: refetchCadences }] = createResource(
+    () => (activeView() === 'cadences' ? true : undefined),
+    () => api.listCadences(),
+    { initialValue: [] },
+  )
+
+  ;[matterDetail, { refetch: refetchMatterDetail }] = createResource(
+    selectedMatterId,
+    (id) => (id ? api.getMatter(id) : null),
+  )
 }

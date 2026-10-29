@@ -148,3 +148,155 @@ pub struct FocusSummary {
     pub sessions: Vec<FocusSession>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct PlaybookStepInput {
+    pub title: String,
+    pub optional: bool,
+    pub evidence_required: bool,
+    #[specta(type = Option<f64>)]
+    pub estimated_minutes: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct PlaybookStep {
+    #[specta(type = f64)]
+    pub id: i64,
+    #[specta(type = f64)]
+    pub playbook_id: i64,
+    pub title: String,
+    pub sort_order: i32,
+    pub optional: bool,
+    pub evidence_required: bool,
+    #[specta(type = Option<f64>)]
+    pub estimated_minutes: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct Playbook {
+    #[specta(type = f64)]
+    pub id: i64,
+    pub title: String,
+    pub archived_at: Option<String>,
+    pub steps: Vec<PlaybookStep>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct MatterStepLink {
+    #[specta(type = f64)]
+    pub id: i64,
+    #[specta(type = f64)]
+    pub matter_step_id: i64,
+    pub kind: String,
+    pub path: String,
+    pub created_at: String,
+    pub exists: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct MatterStepBrief {
+    #[specta(type = f64)]
+    pub id: i64,
+    pub title: String,
+    pub sort_order: i32,
+    pub evidence_required: bool,
+    pub status: String,
+    pub due_date: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct MatterStep {
+    #[specta(type = f64)]
+    pub id: i64,
+    #[specta(type = f64)]
+    pub matter_id: i64,
+    #[specta(type = Option<f64>)]
+    pub playbook_step_id: Option<i64>,
+    pub title: String,
+    pub sort_order: i32,
+    pub evidence_required: bool,
+    pub status: String,
+    pub due_date: Option<String>,
+    #[specta(type = Option<f64>)]
+    pub estimated_minutes: Option<i64>,
+    pub completed_at: Option<String>,
+    pub links: Vec<MatterStepLink>,
+    pub missing_evidence: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct MatterSummary {
+    #[specta(type = f64)]
+    pub id: i64,
+    #[specta(type = Option<f64>)]
+    pub playbook_id: Option<i64>,
+    pub title: String,
+    pub status: String,
+    pub priority: i32,
+    #[specta(type = Option<f64>)]
+    pub category_id: Option<i64>,
+    pub due_date: Option<String>,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+    pub tags: Vec<Tag>,
+    pub current_step: Option<MatterStepBrief>,
+    pub missing_evidence: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct MatterDetail {
+    #[specta(type = f64)]
+    pub id: i64,
+    #[specta(type = Option<f64>)]
+    pub playbook_id: Option<i64>,
+    pub title: String,
+    pub status: String,
+    pub priority: i32,
+    #[specta(type = Option<f64>)]
+    pub category_id: Option<i64>,
+    pub due_date: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub completed_at: Option<String>,
+    pub tags: Vec<Tag>,
+    pub steps: Vec<MatterStep>,
+    pub current_step: Option<MatterStepBrief>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct Cadence {
+    #[specta(type = f64)]
+    pub id: i64,
+    pub title: String,
+    pub period: String,
+    #[specta(type = Option<f64>)]
+    pub target_count: Option<i64>,
+    pub created_at: String,
+    #[specta(type = Vec<f64>)]
+    pub playbook_ids: Vec<i64>,
+    #[specta(type = Vec<f64>)]
+    pub tag_ids: Vec<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct CadenceProgress {
+    pub cadence: Cadence,
+    pub completed_count: i32,
+    pub matching_matters: Vec<MatterSummary>,
+    pub period_start: String,
+    pub period_end: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct AgendaItem {
+    pub kind: String,
+    #[specta(type = f64)]
+    pub id: i64,
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub due_date: Option<String>,
+    pub priority: i32,
+    #[specta(type = Option<f64>)]
+    pub matter_id: Option<i64>,
+    pub missing_evidence: bool,
+}
+

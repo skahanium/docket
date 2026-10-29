@@ -1,6 +1,17 @@
-import { type Component, createSignal, For, Show } from 'solid-js'
+import { type Component, createSignal, For, Show, createResource } from 'solid-js'
 import styles from './CreateTaskDialog.module.css'
-import { createTask as apiCreateTask, addTagToTask, invalidateAfterTaskMutation, pushToast, categories, tags } from '../../stores'
+import {
+  createTask as apiCreateTask,
+  createMatter,
+  createBlankMatter,
+  addTagToTask,
+  invalidateAfterTaskMutation,
+  pushToast,
+  categories,
+  tags,
+  listPlaybooks,
+  selectMatter,
+} from '../../stores'
 
 interface Props {
   open: boolean
@@ -13,7 +24,12 @@ const WEEKDAYS = [
   { n: 4, l: '四' }, { n: 5, l: '五' }, { n: 6, l: '六' }, { n: 7, l: '日' },
 ]
 
+type CreateMode = 'task' | 'matter' | 'blank'
+
 const CreateTaskDialog: Component<Props> = (props) => {
+  const [mode, setMode] = createSignal<CreateMode>('task')
+  const [playbookId, setPlaybookId] = createSignal<number | null>(null)
+  const [playbooks] = createResource(() => listPlaybooks(false))
   const [title, setTitle] = createSignal('')
   const [description, setDescription] = createSignal('')
   const [priority, setPriority] = createSignal(0)
@@ -44,6 +60,35 @@ const CreateTaskDialog: Component<Props> = (props) => {
     const t = title().trim(); if (!t) return
     setSubmitting(true)
     try {
+      if (mode() === 'matter') {
+        const pb = playbookId()
+        if (!pb) { pushToast('error', '请选择模板'); return }
+        const id = await createMatter({
+          playbook_id: pb,
+          title: t,
+          priority: priority(),
+          due_date: dueDate() || null,
+          category_id: categoryId(),
+        })
+        pushToast('success', '事项已创建')
+        invalidateAfterTaskMutation()
+        selectMatter(id)
+        props.onClose()
+        return
+      }
+      if (mode() === 'blank') {
+        const id = await createBlankMatter({
+          title: t,
+          priority: priority(),
+          due_date: dueDate() || null,
+          category_id: categoryId(),
+        })
+        pushToast('success', '空白事项已创建')
+        invalidateAfterTaskMutation()
+        selectMatter(id)
+        props.onClose()
+        return
+      }
       const rule = recurring()
         ? JSON.stringify({
             freq: freq(), interval: interval(),
@@ -77,12 +122,28 @@ const CreateTaskDialog: Component<Props> = (props) => {
   return (
     <div class={styles.overlay} onClick={props.onClose}>
       <div class={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <h3 class={styles.title}>新建任务</h3>
+        <h3 class={styles.title}>新建</h3>
+        <div class={styles.recurToggle} style={{ 'margin-bottom': '16px' }}>
+          <button class={`${styles.recurToggleBtn} ${mode() === 'task' ? styles.recurToggleBtnActive : ''}`} onClick={() => setMode('task')}>任务</button>
+          <button class={`${styles.recurToggleBtn} ${mode() === 'matter' ? styles.recurToggleBtnActive : ''}`} onClick={() => setMode('matter')}>从模板</button>
+          <button class={`${styles.recurToggleBtn} ${mode() === 'blank' ? styles.recurToggleBtnActive : ''}`} onClick={() => setMode('blank')}>空白事项</button>
+        </div>
+
+        <Show when={mode() === 'matter'}>
+          <select class={styles.select} value={playbookId() ?? ''} onChange={(e) => setPlaybookId(e.currentTarget.value ? Number(e.currentTarget.value) : null)}>
+            <option value="">选择流程模板</option>
+            <For each={(playbooks() ?? []).filter((p) => !p.archived_at)}>
+              {(p) => <option value={p.id}>{p.title}</option>}
+            </For>
+          </select>
+        </Show>
 
         <input type="text" class={styles.input} value={title()} onInput={(e) => setTitle(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && title().trim()) submit(); if (e.key === 'Escape') props.onClose() }}
-          placeholder="任务标题" autofocus />
-        <textarea class={styles.textarea} value={description()} onInput={(e) => setDescription(e.currentTarget.value)} placeholder="描述（可选）" />
+          placeholder={mode() === 'task' ? '任务标题' : '事项标题'} autofocus />
+        <Show when={mode() === 'task'}>
+          <textarea class={styles.textarea} value={description()} onInput={(e) => setDescription(e.currentTarget.value)} placeholder="描述（可选）" />
+        </Show>
 
         <div class={styles.metaRow}>
           <select class={styles.select} value={priority()} onChange={(e) => setPriority(Number(e.currentTarget.value))} title="优先级">
@@ -122,6 +183,7 @@ const CreateTaskDialog: Component<Props> = (props) => {
           </div>
         </Show>
 
+        <Show when={mode() === 'task'}>
         <p class={styles.sectionLabel}>重复</p>
         <div class={styles.recurToggle}>
           <button class={`${styles.recurToggleBtn} ${!recurring() ? styles.recurToggleBtnActive : ''}`} onClick={() => setRecurring(false)}>不重复</button>
@@ -179,11 +241,12 @@ const CreateTaskDialog: Component<Props> = (props) => {
             </div>
           </div>
         )}
+        </Show>
 
         <div class={styles.actions}>
           <button class={styles.cancelBtn} onClick={props.onClose}>取消</button>
           <button class={styles.submitBtn} disabled={!title().trim() || submitting()} onClick={submit}>
-            {submitting() ? '创建中…' : '创建'}
+            {submitting() ? '创建中…' : mode() === 'task' ? '创建任务' : '创建事项'}
           </button>
         </div>
       </div>

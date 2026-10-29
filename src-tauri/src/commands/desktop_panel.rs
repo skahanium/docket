@@ -6,11 +6,16 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct TaskPanelRow {
+    pub kind: String,
     #[specta(type = f64)]
     pub id: i64,
     pub title: String,
+    pub subtitle: Option<String>,
     pub due_date: Option<String>,
     pub priority: i32,
+    #[specta(type = Option<f64>)]
+    pub matter_id: Option<i64>,
+    pub missing_evidence: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -28,48 +33,30 @@ pub struct PanelSettings {
     pub panel_refresh_seconds: u64,
 }
 
-const ACTIVE: &str = "active";
-
-fn list_panel_rows(
-    conn: &Connection,
-    today: &str,
-    overdue_only: bool,
-) -> Result<Vec<TaskPanelRow>, String> {
-    let extra = if overdue_only {
-        crate::agenda::overdue_active_predicate("", "?2")
-    } else {
-        crate::agenda::today_active_predicate("", "?2")
-    };
-    let order = if overdue_only {
-        "due_date ASC, priority DESC"
-    } else {
-        "priority DESC, due_date ASC, title ASC"
-    };
-    let sql = format!(
-        "SELECT id, title, due_date, priority FROM tasks
-         WHERE status = ?1 AND {extra}
-         ORDER BY {order}"
-    );
-
-    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map(rusqlite::params![ACTIVE, today], |row| {
-            Ok(TaskPanelRow {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                due_date: row.get(2)?,
-                priority: row.get(3)?,
-            })
-        })
-        .map_err(|e| e.to_string())?;
-
-    Ok(rows.filter_map(|r| r.ok()).collect())
+fn item_to_row(item: crate::models::AgendaItem) -> TaskPanelRow {
+    TaskPanelRow {
+        kind: item.kind,
+        id: item.id,
+        title: item.title,
+        subtitle: item.subtitle,
+        due_date: item.due_date,
+        priority: item.priority,
+        matter_id: item.matter_id,
+        missing_evidence: item.missing_evidence,
+    }
 }
 
 pub fn snapshot_on_conn(conn: &Connection) -> Result<DesktopPanelSnapshot, String> {
-    let today_key = crate::time::local_today_date();
-    let today = list_panel_rows(conn, &today_key, false)?;
-    let overdue = list_panel_rows(conn, &today_key, true)?;
+    let today = crate::agenda::list_agenda_on_conn(conn, "today")
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(item_to_row)
+        .collect();
+    let overdue = crate::agenda::list_agenda_on_conn(conn, "overdue")
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(item_to_row)
+        .collect();
     Ok(DesktopPanelSnapshot {
         today,
         overdue,
@@ -79,24 +66,9 @@ pub fn snapshot_on_conn(conn: &Connection) -> Result<DesktopPanelSnapshot, Strin
 
 /// Lightweight counts for the notification scheduler (no tags/subtasks).
 pub fn panel_counts_on_conn(conn: &Connection) -> Result<(usize, usize), String> {
-    let today_key = crate::time::local_today_date();
-    let today_pred = crate::agenda::today_active_predicate("", "?2");
-    let overdue_pred = crate::agenda::overdue_active_predicate("", "?2");
-    let today_n: i64 = conn
-        .query_row(
-            &format!("SELECT COUNT(*) FROM tasks WHERE status = ?1 AND {today_pred}"),
-            rusqlite::params![ACTIVE, today_key],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    let overdue_n: i64 = conn
-        .query_row(
-            &format!("SELECT COUNT(*) FROM tasks WHERE status = ?1 AND {overdue_pred}"),
-            rusqlite::params![ACTIVE, today_key],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    Ok((today_n as usize, overdue_n as usize))
+    let today = crate::agenda::list_agenda_on_conn(conn, "today").map_err(|e| e.to_string())?;
+    let overdue = crate::agenda::list_agenda_on_conn(conn, "overdue").map_err(|e| e.to_string())?;
+    Ok((today.len(), overdue.len()))
 }
 
 fn setting_bool(conn: &Connection, key: &str, default: bool) -> bool {
@@ -166,6 +138,12 @@ pub async fn update_panel_settings(
 #[tauri::command]
 pub fn focus_task_from_panel(app: tauri::AppHandle, task_id: i64) -> Result<(), String> {
     crate::app_windows::open_task_in_main(&app, task_id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn focus_matter_from_panel(app: tauri::AppHandle, matter_id: i64) -> Result<(), String> {
+    crate::app_windows::open_matter_in_main(&app, matter_id);
     Ok(())
 }
 
