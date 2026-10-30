@@ -43,8 +43,9 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     let app_handle = app.handle().clone();
-    let _tray = TrayIconBuilder::new()
+    let tray_builder = TrayIconBuilder::new()
         .menu(&menu)
+        .tooltip("Docket")
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "show" => app_windows::show_main_window(app),
             "today" => app_windows::show_main_today(app),
@@ -69,8 +70,14 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             {
                 app_windows::show_main_window(tray.app_handle());
             }
-        })
-        .build(app)?;
+        });
+
+    #[cfg(target_os = "macos")]
+    let tray_builder = tray_builder
+        .icon(tauri::include_image!("icons/tray/64x64.png"))
+        .icon_as_template(true);
+
+    let _tray = tray_builder.build(app)?;
 
     let _ = app_handle;
     Ok(())

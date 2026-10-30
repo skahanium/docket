@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "generate:bindings": "cargo run --manifest-path src-tauri/Cargo.toml --bin export-bindings",
-    "check:bindings": "npm run generate:bindings && git diff --exit-code -- src/bindings/generated.ts"
+    "check:bindings": "npm run generate:bindings && git diff --exit-code -- src/bindings/generated.ts",
+    "brand:icons": "node scripts/brand/export-icons.mjs && tauri icon public/app-icon.svg --ios-color '#0A0A0A' && tauri icon public/tray-mark.svg -p 32 -p 64 -o src-tauri/icons/tray"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",

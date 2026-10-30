@@ -16,7 +16,8 @@
 - 提醒通知：后台轮询 + 系统通知（含每日摘要、逾期提醒，可设置关闭）
 - 统计与分析：完成趋势、预估 vs 实际、专注热力图、每日回顾
 - **单例运行**：重复启动唤起已有窗口
-- **托盘常驻**：关闭主窗口隐藏到托盘，托盘可显示/隐藏桌面任务面板
+- **托盘常驻**：关闭主窗口隐藏到托盘，托盘可显示/隐藏桌面任务面板；菜单栏为钢笔 D 模板图标
+- **应用标记**：深底钢笔笔锋 D（Dock / 启动画面同一套字）
 - **桌面任务面板**：悬浮只读清单（今日 + 逾期），点击打开主窗口
 - 设置：工作时间、节假日（可选联网同步）、通知、数据库路径（本地文件备份）
 - 系统托盘、深色/浅色主题
@@ -50,6 +51,9 @@ npm run generate:bindings
 
 # CI：确认 generated.ts 与 Rust 一致
 npm run check:bindings
+
+# 从锁定几何重新导出 Dock / 托盘图标
+npm run brand:icons
 ```
 
 ### 系统要求
@@ -89,6 +93,10 @@ src/
 │   ├── generated.ts    # Specta 生成，勿手改
 │   ├── tasks.ts / calendar.ts / stats.ts / settings.ts …
 └── components/         # TaskList、Calendar、Schedule、StatsPanel、SettingsPanel …
+
+public/app-icon.svg · favicon.svg · wordmark.svg · tray-mark.svg
+scripts/brand/export-icons.mjs   # npm run brand:icons → Dock / 托盘 PNG
+src-tauri/icons/                 # ICNS/ICO；tray/ 为菜单栏模板
 ```
 
 ## 架构

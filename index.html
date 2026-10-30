@@ -5,11 +5,44 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Docket</title>
+    <style>
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        margin: 0;
+        background: #0a0a0a;
+        color: #6f6b64;
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
+      }
+      #boot-splash .mark {
+        width: 96px;
+        height: 96px;
+        display: block;
+      }
+      #boot-splash .wordmark {
+        width: 168px;
+        height: auto;
+        display: block;
+      }
+      #boot-splash p {
+        margin: 4px 0 0;
+        font-size: 13px;
+        letter-spacing: 0.06em;
+      }
+    </style>
   </head>
   <body>
     <div id="root">
-      <div id="boot-splash" style="padding:32px;font-family:system-ui,sans-serif;color:#737373">
-        正在启动 Docket…
+      <div id="boot-splash">
+        <img class="mark" src="/app-icon.svg" width="96" height="96" alt="" />
+        <img class="wordmark" src="/wordmark.svg" width="168" alt="Docket" />
+        <p>正在启动</p>
       </div>
     </div>
     <script type="module" src="/src/index.tsx"></script>
