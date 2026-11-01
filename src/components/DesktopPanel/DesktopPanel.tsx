@@ -11,6 +11,7 @@ import {
   type TaskPanelRow,
 } from '../../bindings/panel'
 import { isMacOS } from '../../utils/platform'
+import { dayDiffFromToday } from '../../utils/date'
 
 const ROW_HEIGHT = 36
 const VIRTUAL_THRESHOLD = 40
@@ -18,10 +19,7 @@ const OVERSCAN = 6
 
 function daysOverdue(dueDate: string | null): number | null {
   if (!dueDate) return null
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const due = new Date(`${dueDate}T00:00:00`)
-  const diff = Math.floor((today.getTime() - due.getTime()) / 86_400_000)
+  const diff = -dayDiffFromToday(dueDate)
   return diff > 0 ? diff : null
 }
 

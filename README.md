@@ -5,16 +5,17 @@
 ## 特性
 
 - 完全离线运行，数据存储在本地 SQLite 数据库（WAL 模式）；界面使用系统字体，启动不访问 CDN
-- 任务管理：创建、编辑、完成、归档、重复规则；「今日 / 逾期」按本机日历日计算。琐碎工作用任务；有程序的工作用**事项**
-- **流程模板**与**事项**：从模板实例化或空白加步；今日一事一步（当前未完成步）；步骤可关联本地文件/文件夹作依据（只记路径，不拷贝）
+- 任务管理：创建、编辑、完成、归档、撤销完成、重复规则；「今日 / 逾期」按本机日历日计算。琐碎工作用任务；有程序的工作用**事项**
+- **流程模板**与**事项**：从模板实例化或空白加步；今日一事一步（当前未完成步）；事项可归档/删除、可写说明；步骤可重排/删除，可关联本地文件/文件夹作依据（只记路径，不拷贝）
+- **到期日**：任务与步骤的 `due_date` 为本地日历日，可选 `HH:MM`；按日前缀归日，不引入第三种对象
 - **周期指标**：月/季/年单独一面，按办结事项自动计数（不进今日）
 - 子任务：可追踪进度，列表一次查询批量加载
-- 日历视图：月历网格、拖拽改期
+- 日历视图：月历网格计入任务与当前步到期；从任务卡或议程拖到日格改期（保留已有时刻）
 - 日程排程：按工作日/节假日自动排程、上午/下午时间块
 - 专注计时：独立置顶小窗
 - 分类与标签：筛选与组织
-- 提醒通知：后台轮询 + 系统通知（含每日摘要、逾期提醒，可设置关闭）
-- 统计与分析：完成趋势、预估 vs 实际、专注热力图、每日回顾
+- 提醒通知：后台轮询 + 系统通知（含每日摘要、逾期提醒、pending 步骤到期，可设置关闭逾期/摘要）
+- 统计与分析：完成趋势、预估 vs 实际、专注热力图、每日回顾（含当日完成步数与事项数）
 - **单例运行**：重复启动唤起已有窗口
 - **托盘常驻**：关闭主窗口隐藏到托盘，托盘可显示/隐藏桌面任务面板；菜单栏为钢笔 D 模板图标
 - **应用标记**：深底钢笔笔锋 D（Dock / 启动画面同一套字）
@@ -124,7 +125,7 @@ src-tauri/icons/                 # ICNS/ICO；tray/ 为菜单栏模板
 | 任务 | `list_tasks`, `create_task`, … | 列表为批量查询，无 N+1 |
 | 议程 | `list_agenda` | 今日/逾期：任务谓词 ∪ 各进行中事项的当前步；侧栏分类/标签在前端筛 |
 | 模板 | `list_playbooks`, `create_playbook`, `set_playbook_steps` | 实例化时拷贝步骤；创建后不能改 `playbook_id` |
-| 事项 | `list_matters`, `create_matter`, `create_blank_matter`, `update_matter`, `update_matter_step`, `complete_matter_step`, `skip_matter_step`, `reopen_matter_step` | 与 tasks 分表；一事一步 |
+| 事项 | `list_matters`, `create_matter`, `create_blank_matter`, `update_matter`, `archive_matter`, `restore_matter`, `delete_matter`, `update_matter_step`, `reorder_matter_steps`, `delete_matter_step`, `complete_matter_step`, `skip_matter_step`, `reopen_matter_step` | 与 tasks 分表；一事一步；默认列表不含归档 |
 | 依据 | `add_step_link`, `remove_step_link`, `replace_step_link`, `open_step_link`, `reveal_step_link`, `pick_evidence_path` | 只存绝对路径；dialog 选路径，opener 打开 |
 | 指标 | `list_cadences`, `create_cadence`, `update_cadence`, `get_cadence_progress` | 查询办结事项，不是累加器；不进今日 |
 | 统计 | `get_stats_panel` | 一次返回统计卡片、周预估/实际、专注热力图 |
@@ -143,7 +144,7 @@ src-tauri/icons/                 # ICNS/ICO；tray/ 为菜单栏模板
 ## 数据库
 
 - 路径：系统应用数据目录下的 `docket.db`
-- 迁移：`_migrations` 表版本化（当前 **v6**：v5 的模板/事项/依据/指标，外加指标过滤器 `ON DELETE RESTRICT`）
+- 迁移：`_migrations` 表版本化（当前 **v7**：v6 的指标过滤器 RESTRICT，外加 `matters.notes`、`matter_steps.due_notified`）
 - 完整性：启动时 `PRAGMA integrity_check`
 
 ## 许可证

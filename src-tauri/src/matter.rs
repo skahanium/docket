@@ -19,7 +19,7 @@ pub fn create_blank_matter_on_conn(
 ) -> AppResult<i64> {
     let title = require_title(title)?;
     if let Some(d) = due_date {
-        crate::agenda::parse_calendar_date(d).map_err(AppError::InvalidDate)?;
+        crate::agenda::parse_due_date(d).map_err(AppError::InvalidDate)?;
     }
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
@@ -38,6 +38,7 @@ pub fn update_matter_on_conn(
     priority: Option<i32>,
     category_id: Option<Option<i64>>,
     due_date: Option<Option<&str>>,
+    notes: Option<Option<&str>>,
 ) -> AppResult<()> {
     matter_exists(conn, id)?;
     if let Some(title) = title {
@@ -61,13 +62,85 @@ pub fn update_matter_on_conn(
     }
     if let Some(due) = due_date {
         if let Some(d) = due {
-            crate::agenda::parse_calendar_date(d).map_err(AppError::InvalidDate)?;
+            crate::agenda::parse_due_date(d).map_err(AppError::InvalidDate)?;
         }
         conn.execute(
             "UPDATE matters SET due_date=?1, updated_at=?2 WHERE id=?3",
             params![due, chrono::Utc::now().to_rfc3339(), id],
         )?;
     }
+    if let Some(notes) = notes {
+        conn.execute(
+            "UPDATE matters SET notes=?1, updated_at=?2 WHERE id=?3",
+            params![notes, chrono::Utc::now().to_rfc3339(), id],
+        )?;
+    }
+    Ok(())
+}
+
+pub fn archive_matter_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
+    matter_exists(conn, id)?;
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE matters SET status=?1, archived_at=?2, updated_at=?2 WHERE id=?3",
+        params![matter_status::ARCHIVED, now, id],
+    )?;
+    Ok(())
+}
+
+pub fn restore_matter_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
+    matter_exists(conn, id)?;
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE matters SET status=?1, archived_at=NULL, updated_at=?2 WHERE id=?3",
+        params![matter_status::ACTIVE, now, id],
+    )?;
+    maybe_refresh_matter_status(conn, id)?;
+    Ok(())
+}
+
+pub fn delete_matter_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
+    matter_exists(conn, id)?;
+    conn.execute("DELETE FROM matters WHERE id=?1", params![id])?;
+    Ok(())
+}
+
+pub fn reorder_matter_steps_on_conn(conn: &Connection, matter_id: i64, ordered_ids: &[i64]) -> AppResult<()> {
+    matter_exists(conn, matter_id)?;
+    let existing: Vec<i64> = {
+        let mut stmt = conn.prepare("SELECT id FROM matter_steps WHERE matter_id=?1 ORDER BY id")?;
+        let rows = stmt.query_map(params![matter_id], |r| r.get(0))?;
+        let ids: Vec<i64> = rows.filter_map(|r| r.ok()).collect();
+        ids
+    };
+    let mut got = ordered_ids.to_vec();
+    got.sort_unstable();
+    let mut want = existing;
+    want.sort_unstable();
+    if got != want {
+        return Err(AppError::message("步骤排序须包含该事项全部步骤且不得多出"));
+    }
+    let tx = conn.unchecked_transaction()?;
+    for (i, step_id) in ordered_ids.iter().enumerate() {
+        tx.execute(
+            "UPDATE matter_steps SET sort_order=?1 WHERE id=?2 AND matter_id=?3",
+            params![i as i32, step_id, matter_id],
+        )?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+pub fn delete_matter_step_on_conn(conn: &Connection, step_id: i64) -> AppResult<()> {
+    let matter_id: i64 = conn
+        .query_row(
+            "SELECT matter_id FROM matter_steps WHERE id=?1",
+            params![step_id],
+            |r| r.get(0),
+        )
+        .map_err(|_| AppError::message(format!("步骤不存在 (id={step_id})")))?;
+    conn.execute("DELETE FROM matter_steps WHERE id=?1", params![step_id])?;
+    maybe_refresh_matter_status(conn, matter_id)?;
     Ok(())
 }
 
@@ -94,7 +167,7 @@ pub fn add_matter_step_on_conn(
     matter_exists(conn, matter_id)?;
     let title = require_title(title)?;
     if let Some(d) = due_date {
-        crate::agenda::parse_calendar_date(d).map_err(AppError::InvalidDate)?;
+        crate::agenda::parse_due_date(d).map_err(AppError::InvalidDate)?;
     }
     let next: i32 = conn
         .query_row(
@@ -137,10 +210,10 @@ pub fn update_matter_step_on_conn(
     }
     if let Some(due) = due_date {
         if let Some(d) = due {
-            crate::agenda::parse_calendar_date(d).map_err(AppError::InvalidDate)?;
+            crate::agenda::parse_due_date(d).map_err(AppError::InvalidDate)?;
         }
         conn.execute(
-            "UPDATE matter_steps SET due_date=?1 WHERE id=?2",
+            "UPDATE matter_steps SET due_date=?1, due_notified=0 WHERE id=?2",
             params![due, step_id],
         )?;
     }
@@ -208,7 +281,7 @@ fn set_step_status(
         )?;
     } else {
         conn.execute(
-            "UPDATE matter_steps SET status=?1, completed_at=NULL WHERE id=?2",
+            "UPDATE matter_steps SET status=?1, completed_at=NULL, due_notified=0 WHERE id=?2",
             params![status, step_id],
         )?;
     }
@@ -217,6 +290,14 @@ fn set_step_status(
 }
 
 fn maybe_refresh_matter_status(conn: &Connection, matter_id: i64) -> AppResult<()> {
+    let current: String = conn.query_row(
+        "SELECT status FROM matters WHERE id=?1",
+        params![matter_id],
+        |r| r.get(0),
+    )?;
+    if current == matter_status::ARCHIVED {
+        return Ok(());
+    }
     let pending: i64 = conn.query_row(
         "SELECT COUNT(*) FROM matter_steps WHERE matter_id=?1 AND status=?2",
         params![matter_id, step_status::PENDING],
@@ -344,7 +425,7 @@ pub fn list_matters_on_conn(conn: &Connection, status: Option<&str>) -> AppResul
          FROM matters WHERE status=?1 ORDER BY updated_at DESC, id DESC"
     } else {
         "SELECT id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at
-         FROM matters ORDER BY updated_at DESC, id DESC"
+         FROM matters WHERE status != ?1 ORDER BY updated_at DESC, id DESC"
     };
     let mut stmt = conn.prepare(sql)?;
     let mut summaries = Vec::new();
@@ -370,7 +451,7 @@ pub fn list_matters_on_conn(conn: &Connection, status: Option<&str>) -> AppResul
             ));
         }
     } else {
-        let rows = stmt.query_map([], |row| {
+        let rows = stmt.query_map(params![matter_status::ARCHIVED], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, Option<i64>>(1)?,
@@ -480,7 +561,7 @@ pub fn list_completed_matters_in_range(
 }
 
 pub fn get_matter_on_conn(conn: &Connection, id: i64) -> AppResult<MatterDetail> {
-    let (playbook_id, title, status, priority, category_id, due_date, created_at, updated_at, completed_at): (
+    let (playbook_id, title, status, priority, category_id, due_date, created_at, updated_at, completed_at, notes): (
         Option<i64>,
         String,
         String,
@@ -490,9 +571,10 @@ pub fn get_matter_on_conn(conn: &Connection, id: i64) -> AppResult<MatterDetail>
         String,
         String,
         Option<String>,
+        Option<String>,
     ) = conn
         .query_row(
-            "SELECT playbook_id, title, status, priority, category_id, due_date, created_at, updated_at, completed_at
+            "SELECT playbook_id, title, status, priority, category_id, due_date, created_at, updated_at, completed_at, notes
              FROM matters WHERE id=?1",
             params![id],
             |r| {
@@ -506,6 +588,7 @@ pub fn get_matter_on_conn(conn: &Connection, id: i64) -> AppResult<MatterDetail>
                     r.get(6)?,
                     r.get(7)?,
                     r.get(8)?,
+                    r.get(9)?,
                 ))
             },
         )
@@ -571,6 +654,7 @@ pub fn get_matter_on_conn(conn: &Connection, id: i64) -> AppResult<MatterDetail>
         created_at,
         updated_at,
         completed_at,
+        notes,
         tags,
         steps,
         current_step: current,
@@ -619,7 +703,7 @@ mod tests {
     fn playbook_id_stays_after_title_update() {
         let conn = conn();
         let (pb, mid) = seeded_matter(&conn);
-        update_matter_on_conn(&conn, mid, Some("新标题"), None, None, None).unwrap();
+        update_matter_on_conn(&conn, mid, Some("新标题"), None, None, None, None).unwrap();
         let detail = get_matter_on_conn(&conn, mid).unwrap();
         assert_eq!(detail.playbook_id, Some(pb));
         assert_eq!(detail.title, "新标题");
@@ -691,5 +775,86 @@ mod tests {
     fn blank_title_rejected() {
         let conn = conn();
         assert!(create_blank_matter_on_conn(&conn, "  ", 0, None, None).is_err());
+    }
+
+    #[test]
+    fn archive_hides_from_default_list_and_restore_returns() {
+        let conn = conn();
+        let (_pb, mid) = seeded_matter(&conn);
+        archive_matter_on_conn(&conn, mid).unwrap();
+        let listed = list_matters_on_conn(&conn, None).unwrap();
+        assert!(!listed.iter().any(|m| m.id == mid));
+        let archived = list_matters_on_conn(&conn, Some(matter_status::ARCHIVED)).unwrap();
+        assert!(archived.iter().any(|m| m.id == mid));
+        restore_matter_on_conn(&conn, mid).unwrap();
+        let again = list_matters_on_conn(&conn, None).unwrap();
+        assert!(again.iter().any(|m| m.id == mid && m.status == matter_status::ACTIVE));
+    }
+
+    #[test]
+    fn delete_matter_cascades_steps_and_links() {
+        let conn = conn();
+        let (_pb, mid) = seeded_matter(&conn);
+        let step = current_pending_step(&conn, mid).unwrap().unwrap();
+        crate::evidence::add_step_link_on_conn(&conn, step.id, "file", "/tmp/docket-evidence.txt").unwrap();
+        delete_matter_on_conn(&conn, mid).unwrap();
+        let n: i64 = conn
+            .query_row("SELECT COUNT(*) FROM matters WHERE id=?1", params![mid], |r| r.get(0))
+            .unwrap();
+        assert_eq!(n, 0);
+        let steps: i64 = conn
+            .query_row("SELECT COUNT(*) FROM matter_steps WHERE matter_id=?1", params![mid], |r| r.get(0))
+            .unwrap();
+        assert_eq!(steps, 0);
+        let links: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM matter_step_links WHERE matter_step_id=?1",
+                params![step.id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(links, 0);
+    }
+
+    #[test]
+    fn reorder_updates_sort_order_and_current_step() {
+        let conn = conn();
+        let (_pb, mid) = seeded_matter(&conn);
+        let detail = get_matter_on_conn(&conn, mid).unwrap();
+        let ids: Vec<i64> = detail.steps.iter().map(|s| s.id).collect();
+        reorder_matter_steps_on_conn(&conn, mid, &[ids[1], ids[0]]).unwrap();
+        let after = get_matter_on_conn(&conn, mid).unwrap();
+        assert_eq!(after.current_step.unwrap().id, ids[1]);
+        assert_eq!(after.steps[0].id, ids[1]);
+        assert_eq!(after.steps[1].id, ids[0]);
+        assert_eq!(after.steps[0].sort_order, 0);
+        assert_eq!(after.steps[1].sort_order, 1);
+        assert!(reorder_matter_steps_on_conn(&conn, mid, &[ids[0]]).is_err());
+    }
+
+    #[test]
+    fn delete_current_step_exposes_next_pending() {
+        let conn = conn();
+        let (_pb, mid) = seeded_matter(&conn);
+        let first = current_pending_step(&conn, mid).unwrap().unwrap();
+        delete_matter_step_on_conn(&conn, first.id).unwrap();
+        let next = current_pending_step(&conn, mid).unwrap().unwrap();
+        assert_eq!(next.title, "二");
+        let empty_ok = add_matter_step_on_conn(&conn, mid, "三", false, None, None).unwrap();
+        delete_matter_step_on_conn(&conn, next.id).unwrap();
+        delete_matter_step_on_conn(&conn, empty_ok).unwrap();
+        assert!(current_pending_step(&conn, mid).unwrap().is_none());
+    }
+
+    #[test]
+    fn notes_roundtrip_on_update() {
+        let conn = conn();
+        let (_pb, mid) = seeded_matter(&conn);
+        update_matter_on_conn(&conn, mid, None, None, None, None, Some(Some("备忘"))).unwrap();
+        let detail = get_matter_on_conn(&conn, mid).unwrap();
+        assert_eq!(detail.notes.as_deref(), Some("备忘"));
+        update_matter_on_conn(&conn, mid, None, None, None, None, Some(None)).unwrap();
+        let cleared = get_matter_on_conn(&conn, mid).unwrap();
+        assert!(cleared.notes.is_none() || cleared.notes.as_deref() == Some(""));
     }
 }

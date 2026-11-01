@@ -19,7 +19,9 @@ import {
   agenda,
   activePriority,
   completeMatterStep,
+  reopenMatterStep,
   pushToast,
+  dismissToast,
 } from './stores'
 import { filterAgendaItems } from './utils/agendaMap'
 import TopBar from './components/TopBar/TopBar'
@@ -172,7 +174,14 @@ const App: Component = () => {
                   else {
                     void completeMatterStep(item.id)
                       .then(() => {
-                        pushToast('success', '已完成当前步')
+                        pushToast('success', '已完成当前步', {
+                          label: '撤销',
+                          onClick: () => {
+                            void reopenMatterStep(item.id)
+                              .then(() => invalidateAfterTaskMutation())
+                              .catch((e) => pushToast('error', String(e)))
+                          },
+                        })
                         invalidateAfterTaskMutation()
                       })
                       .catch((e) => pushToast('error', String(e)))
@@ -232,7 +241,24 @@ const App: Component = () => {
               <span style={{ color: borderColor, 'font-size': '18px', 'flex-shrink': 0 }}>
                 {t.type === 'error' ? '✕' : t.type === 'success' ? '✓' : 'i'}
               </span>
-              {t.message}
+              <span>{t.message}</span>
+              <Show when={t.action}>
+                <button
+                  type="button"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--accent)',
+                    'font-size': '14px',
+                    cursor: 'pointer',
+                    'flex-shrink': 0,
+                  }}
+                  onClick={() => {
+                    t.action?.onClick()
+                    dismissToast(t.id)
+                  }}
+                >{t.action!.label}</button>
+              </Show>
             </div>
           }}
         </For>

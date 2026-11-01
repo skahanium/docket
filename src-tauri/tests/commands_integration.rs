@@ -106,6 +106,74 @@ fn calendar_month_reflects_due_dates() {
 }
 
 #[test]
+fn calendar_month_groups_timed_dues_on_same_day() {
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+
+    create_task_on_conn(
+        &conn,
+        CreateTaskInput {
+            title: "上午".into(),
+            description: None,
+            priority: None,
+            due_date: Some("2026-06-15T09:00".into()),
+            category_id: None,
+            recurrence_rule: None,
+            estimated_minutes: None,
+        },
+    )
+    .expect("create morning");
+    create_task_on_conn(
+        &conn,
+        CreateTaskInput {
+            title: "下午".into(),
+            description: None,
+            priority: None,
+            due_date: Some("2026-06-15T15:00".into()),
+            category_id: None,
+            recurrence_rule: None,
+            estimated_minutes: None,
+        },
+    )
+    .expect("create afternoon");
+
+    let days = get_calendar_month_on_conn(&conn, 2026, 6).expect("calendar");
+    let day = days
+        .iter()
+        .find(|d| d.date == "2026-06-15")
+        .expect("june 15");
+    assert_eq!(day.task_count, 2);
+}
+
+#[test]
+fn calendar_month_counts_current_pending_step_due() {
+    use app_lib::matter::{
+        complete_matter_step_on_conn, create_blank_matter_on_conn, current_pending_step,
+        add_matter_step_on_conn,
+    };
+
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+    let mid = create_blank_matter_on_conn(&conn, "日历事项", 0, None, None).expect("matter");
+    add_matter_step_on_conn(&conn, mid, "第一步", false, Some("2026-06-10"), None).expect("step1");
+    add_matter_step_on_conn(&conn, mid, "第二步", false, Some("2026-06-20"), None).expect("step2");
+
+    let days = get_calendar_month_on_conn(&conn, 2026, 6).expect("calendar");
+    let tenth = days.iter().find(|d| d.date == "2026-06-10").expect("10");
+    let twentieth = days.iter().find(|d| d.date == "2026-06-20").expect("20");
+    assert_eq!(tenth.task_count, 1);
+    assert_eq!(twentieth.task_count, 0);
+
+    let first = current_pending_step(&conn, mid).unwrap().unwrap();
+    complete_matter_step_on_conn(&conn, first.id).unwrap();
+    let after = get_calendar_month_on_conn(&conn, 2026, 6).expect("calendar after");
+    let tenth_after = after.iter().find(|d| d.date == "2026-06-10").expect("10");
+    let twentieth_after = after.iter().find(|d| d.date == "2026-06-20").expect("20");
+    assert_eq!(tenth_after.task_count, 0);
+    assert_eq!(twentieth_after.task_count, 1);
+}
+
+#[test]
 fn desktop_panel_snapshot_lists_today_and_overdue() {
     let db = in_memory_db();
     let conn = lock_conn(&db).expect("lock");

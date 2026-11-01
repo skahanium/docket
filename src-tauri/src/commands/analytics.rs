@@ -60,6 +60,8 @@ pub struct DailyReview {
     #[specta(type = f64)]
     pub focus_sessions: i64,
     pub plan_accuracy: f64,
+    pub completed_steps: i32,
+    pub completed_matters: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -84,9 +86,9 @@ pub fn weekly_accuracy_on_conn(
     let mut estimated_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT due_date, COALESCE(SUM(estimated_minutes), 0)
-             FROM tasks WHERE due_date >= ?1 AND due_date < ?2 AND status='completed'
-             GROUP BY due_date",
+            "SELECT substr(due_date,1,10), COALESCE(SUM(estimated_minutes), 0)
+             FROM tasks WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) < ?2 AND status='completed'
+             GROUP BY substr(due_date,1,10)",
         ).map_err(|e| e.to_string())?;
         for row in stmt.query_map([&week_ago, &tomorrow], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
@@ -99,10 +101,10 @@ pub fn weekly_accuracy_on_conn(
     let mut actual_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT t.due_date, COALESCE(SUM(fs.duration_minutes), 0)
+            "SELECT substr(t.due_date,1,10), COALESCE(SUM(fs.duration_minutes), 0)
              FROM focus_sessions fs JOIN tasks t ON fs.task_id = t.id
-             WHERE t.due_date >= ?1 AND t.due_date < ?2 AND fs.completed=1
-             GROUP BY t.due_date",
+             WHERE substr(t.due_date,1,10) >= ?1 AND substr(t.due_date,1,10) < ?2 AND fs.completed=1
+             GROUP BY substr(t.due_date,1,10)",
         ).map_err(|e| e.to_string())?;
         for row in stmt.query_map([&week_ago, &tomorrow], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
@@ -115,7 +117,7 @@ pub fn weekly_accuracy_on_conn(
     let mut completed_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT due_date, COUNT(*) FROM tasks WHERE due_date >= ?1 AND due_date < ?2 AND status='completed' GROUP BY due_date",
+            "SELECT substr(due_date,1,10), COUNT(*) FROM tasks WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) < ?2 AND status='completed' GROUP BY substr(due_date,1,10)",
         ).map_err(|e| e.to_string())?;
         for row in stmt.query_map([&week_ago, &tomorrow], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
@@ -128,7 +130,7 @@ pub fn weekly_accuracy_on_conn(
     let mut total_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT due_date, COUNT(*) FROM tasks WHERE due_date >= ?1 AND due_date < ?2 AND status!='archived' GROUP BY due_date",
+            "SELECT substr(due_date,1,10), COUNT(*) FROM tasks WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) < ?2 AND status!='archived' GROUP BY substr(due_date,1,10)",
         ).map_err(|e| e.to_string())?;
         for row in stmt.query_map([&week_ago, &tomorrow], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
@@ -223,7 +225,7 @@ pub fn get_workload_summary(state: State<DbState>, date: Option<String>) -> Resu
     let is_workday = crate::db::is_workday(&conn, &date);
 
     let estimated_total: i64 = conn.query_row(
-        "SELECT COALESCE(SUM(estimated_minutes), 0) FROM tasks WHERE due_date=?1 AND status='active'",
+        "SELECT COALESCE(SUM(estimated_minutes), 0) FROM tasks WHERE substr(due_date,1,10)=?1 AND status='active'",
         [&date],
         |r| r.get(0),
     ).map_err(|e| e.to_string())?;
@@ -251,13 +253,13 @@ pub fn get_workload_summary(state: State<DbState>, date: Option<String>) -> Resu
     } else { 0 };
 
     let task_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM tasks WHERE due_date=?1 AND status='active'",
+        "SELECT COUNT(*) FROM tasks WHERE substr(due_date,1,10)=?1 AND status='active'",
         [&date],
         |r| r.get(0),
     ).map_err(|e| e.to_string())?;
 
     let completed_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM tasks WHERE due_date=?1 AND status='completed'",
+        "SELECT COUNT(*) FROM tasks WHERE substr(due_date,1,10)=?1 AND status='completed'",
         [&date],
         |r| r.get(0),
     ).map_err(|e| e.to_string())?;
@@ -274,9 +276,34 @@ pub fn get_workload_summary(state: State<DbState>, date: Option<String>) -> Resu
     })
 }
 
-#[tauri::command]
-pub fn get_daily_review(state: State<DbState>, date: Option<String>) -> Result<DailyReview, String> {
-    let conn = lock_conn(&state)?;
+fn count_local_completed(conn: &rusqlite::Connection, table: &str, date: &str, extra: &str) -> i32 {
+    let day = match crate::agenda::parse_calendar_date(date) {
+        Ok(d) => d,
+        Err(_) => return 0,
+    };
+    let next = match day.succ_opt() {
+        Some(d) => d,
+        None => return 0,
+    };
+    let sql = format!("SELECT completed_at FROM {table} WHERE completed_at IS NOT NULL{extra}");
+    let mut stmt = match conn.prepare(&sql) {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+    stmt.query_map([], |r| r.get::<_, String>(0))
+        .ok()
+        .map(|rows| {
+            rows.filter_map(|r| r.ok())
+                .filter(|ts| crate::agenda::local_date_in_period(ts, day, next))
+                .count() as i32
+        })
+        .unwrap_or(0)
+}
+
+pub fn get_daily_review_on_conn(
+    conn: &rusqlite::Connection,
+    date: Option<String>,
+) -> Result<DailyReview, String> {
     let date = date.unwrap_or_else(crate::time::local_today_date);
     let (day_start, day_end) = crate::agenda::local_day_bounds(&date)?;
 
@@ -288,7 +315,7 @@ pub fn get_daily_review(state: State<DbState>, date: Option<String>) -> Result<D
                 COALESCE((SELECT SUM(fs.duration_minutes) FROM focus_sessions fs WHERE fs.task_id=t.id AND fs.completed=1), 0),
                 t.priority
          FROM tasks t
-         WHERE t.due_date=?1 AND t.status='completed'
+         WHERE substr(t.due_date,1,10)=?1 AND t.status='completed'
          ORDER BY t.completed_at"
     ).map_err(|e| e.to_string())?;
 
@@ -308,7 +335,7 @@ pub fn get_daily_review(state: State<DbState>, date: Option<String>) -> Result<D
                 COALESCE((SELECT SUM(fs.duration_minutes) FROM focus_sessions fs WHERE fs.task_id=t.id AND fs.completed=1), 0),
                 t.priority
          FROM tasks t
-         WHERE t.due_date=?1 AND t.status='active'
+         WHERE substr(t.due_date,1,10)=?1 AND t.status='active'
          ORDER BY t.priority DESC"
     ).map_err(|e| e.to_string())?;
 
@@ -336,13 +363,75 @@ pub fn get_daily_review(state: State<DbState>, date: Option<String>) -> Result<D
     let accuracy = if total_est > 0 { total_act as f64 / total_est as f64 } else { 0.0 };
 
     Ok(DailyReview {
-        date,
+        date: date.clone(),
         is_workday,
         completed_tasks,
         incomplete_tasks,
         total_focus_minutes: focus_minutes,
         focus_sessions,
         plan_accuracy: accuracy,
+        completed_steps: count_local_completed(conn, "matter_steps", &date, " AND status='completed'"),
+        completed_matters: count_local_completed(conn, "matters", &date, ""),
     })
+}
+
+#[tauri::command]
+pub fn get_daily_review(state: State<DbState>, date: Option<String>) -> Result<DailyReview, String> {
+    let conn = lock_conn(&state)?;
+    get_daily_review_on_conn(&conn, date)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db;
+    use crate::matter::{add_matter_step_on_conn, complete_matter_step_on_conn, create_blank_matter_on_conn};
+    use chrono::Local;
+    use rusqlite::Connection;
+
+    #[test]
+    fn daily_review_counts_use_local_completed_at() {
+        let conn = Connection::open_in_memory().unwrap();
+        db::init_db(&conn).unwrap();
+        let mid = create_blank_matter_on_conn(&conn, "复盘事项", 0, None, None).unwrap();
+        let sid = add_matter_step_on_conn(&conn, mid, "一步", false, None, None).unwrap();
+        complete_matter_step_on_conn(&conn, sid).unwrap();
+        let today = crate::time::local_today_date();
+        let review = get_daily_review_on_conn(&conn, Some(today.clone())).unwrap();
+        assert_eq!(review.completed_steps, 1);
+        assert_eq!(review.completed_matters, 1);
+
+        let skipped_matter = create_blank_matter_on_conn(&conn, "跳过不算完成步", 0, None, None).unwrap();
+        let skipped = add_matter_step_on_conn(&conn, skipped_matter, "跳过步", false, None, None).unwrap();
+        crate::matter::skip_matter_step_on_conn(&conn, skipped).unwrap();
+        let after_skip = get_daily_review_on_conn(&conn, Some(today.clone())).unwrap();
+        assert_eq!(after_skip.completed_steps, 1, "跳过的步不应计入完成步数");
+        assert_eq!(after_skip.completed_matters, 2);
+
+        let offset = Local::now().offset().local_minus_utc();
+        if offset == 8 * 3600 {
+            let conn = Connection::open_in_memory().unwrap();
+            db::init_db(&conn).unwrap();
+            let other = create_blank_matter_on_conn(&conn, "跨日", 0, None, None).unwrap();
+            let step = add_matter_step_on_conn(&conn, other, "跨日步", false, None, None).unwrap();
+            complete_matter_step_on_conn(&conn, step).unwrap();
+            conn.execute(
+                "UPDATE matter_steps SET completed_at='2026-10-31T16:00:00+00:00' WHERE id=?1",
+                rusqlite::params![step],
+            )
+            .unwrap();
+            conn.execute(
+                "UPDATE matters SET completed_at='2026-10-31T16:00:00+00:00' WHERE id=?1",
+                rusqlite::params![other],
+            )
+            .unwrap();
+            let nov = get_daily_review_on_conn(&conn, Some("2026-11-01".into())).unwrap();
+            let oct = get_daily_review_on_conn(&conn, Some("2026-10-31".into())).unwrap();
+            assert_eq!(nov.completed_steps, 1);
+            assert_eq!(nov.completed_matters, 1);
+            assert_eq!(oct.completed_steps, 0);
+            assert_eq!(oct.completed_matters, 0);
+        }
+    }
 }
 

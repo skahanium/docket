@@ -23,9 +23,17 @@ import {
   openStepLink,
   revealStepLink,
   pickEvidencePath,
+  archiveMatter,
+  restoreMatter,
+  deleteMatter,
+  reorderMatterSteps,
+  deleteMatterStep,
 } from '../../stores'
 import type { MatterStepLink } from '../../bindings/types'
 import { evidenceLinkInput } from '../../utils/evidencePatch'
+import DueFields from '../shared/DueFields'
+import Button from '../shared/Button'
+import ConfirmDialog from '../ConfirmDialog/ConfirmDialog'
 
 const STEP_LABEL: Record<string, string> = {
   pending: '未开始',
@@ -46,6 +54,13 @@ const MatterDetail: Component = () => {
   const [stepDue, setStepDue] = createSignal('')
   const [requireEvidence, setRequireEvidence] = createSignal(false)
   const [addingTag, setAddingTag] = createSignal(false)
+  const [notesDraft, setNotesDraft] = createSignal('')
+  const [confirmAction, setConfirmAction] = createSignal<{
+    title: string
+    message: string
+    fn: () => void
+    danger?: boolean
+  } | null>(null)
 
   let lastOpen = false
   let lastStepId: number | null = null
@@ -70,6 +85,16 @@ const MatterDetail: Component = () => {
     return playbooks()?.find((p) => p.id === d.playbook_id)?.title ?? '模板'
   }
 
+  let lastNotesMatterId: number | null = null
+  createEffect(() => {
+    const d = shown()
+    const id = d?.id ?? null
+    if (id !== lastNotesMatterId) {
+      lastNotesMatterId = id
+      setNotesDraft(d?.notes ?? '')
+    }
+  })
+
   const saveTitle = async (title: string) => {
     const d = detail()
     if (!d) return
@@ -88,8 +113,10 @@ const MatterDetail: Component = () => {
       await fn()
       pushToast('success', ok)
       invalidateAfterMutation()
+      return true
     } catch (e) {
       pushToast('error', String(e))
+      return false
     }
   }
 
@@ -146,11 +173,26 @@ const MatterDetail: Component = () => {
           {(_id) => {
           const d = () => shown()!
           return (
+          <>
           <div class={styles.body}>
             <input
               class={styles.taskTitle}
               value={d().title}
               onChange={(e) => void saveTitle(e.currentTarget.value)}
+            />
+            <textarea
+              class={styles.descTextarea}
+              placeholder="说明（可选）"
+              value={notesDraft()}
+              onInput={(e) => setNotesDraft(e.currentTarget.value)}
+              onBlur={() => {
+                const next = notesDraft().trim()
+                const prev = (d().notes ?? '').trim()
+                if (next === prev) return
+                void updateMatter(d().id, next ? { notes: next } : { clear_notes: true })
+                  .then(() => invalidateAfterMutation())
+                  .catch((err) => pushToast('error', String(err)))
+              }}
             />
             <div class={styles.propGroup}>
               <div class={styles.propRow}>
@@ -159,7 +201,7 @@ const MatterDetail: Component = () => {
               </div>
               <div class={styles.propRow}>
                 <span class={styles.propLabel}>状态</span>
-                <span class={styles.propValue}>{d().status === 'completed' ? '已办结' : '进行中'}</span>
+                <span class={styles.propValue}>{d().status === 'completed' ? '已办结' : d().status === 'archived' ? '已归档' : '进行中'}</span>
               </div>
               <div class={styles.propRow}>
                 <span class={styles.propLabel}>优先级</span>
@@ -179,13 +221,11 @@ const MatterDetail: Component = () => {
               </div>
               <div class={styles.propRow}>
                 <span class={styles.propLabel}>截止日期</span>
-                <input
-                  type="date"
-                  class={styles.propDate}
-                  value={d().due_date ?? ''}
-                  onChange={(e) => {
-                    const v = e.currentTarget.value
-                    void updateMatter(d().id, { due_date: v || null, clear_due_date: !v })
+                <DueFields
+                  value={d().due_date}
+                  dateClass={styles.propDate}
+                  onChange={(v) => {
+                    void updateMatter(d().id, { due_date: v, clear_due_date: !v })
                       .then(() => invalidateAfterMutation())
                       .catch((err) => pushToast('error', String(err)))
                   }}
@@ -242,13 +282,11 @@ const MatterDetail: Component = () => {
                           {step.missing_evidence ? ' · 缺依据' : ''}
                         </div>
                         <div class={styles.propRow} style="padding: 4px 0; grid-template-columns: minmax(0, 1fr) auto;">
-                          <input
-                            type="date"
-                            class={styles.propDate}
-                            value={step.due_date ?? ''}
-                            onChange={(e) => {
-                              const v = e.currentTarget.value
-                              void updateMatterStep(step.id, { due_date: v || null, clear_due_date: !v })
+                          <DueFields
+                            value={step.due_date}
+                            dateClass={styles.propDate}
+                            onChange={(v) => {
+                              void updateMatterStep(step.id, { due_date: v, clear_due_date: !v })
                                 .then(() => invalidateAfterMutation())
                                 .catch((err) => pushToast('error', String(err)))
                             }}
@@ -285,6 +323,37 @@ const MatterDetail: Component = () => {
                         </Show>
                         <button class={page.btn} onClick={() => void bindPath(step.id, false)}>文件</button>
                         <button class={page.btn} onClick={() => void bindPath(step.id, true)}>文件夹</button>
+                        <button
+                          class={page.btnGhost}
+                          disabled={d().steps.findIndex((s) => s.id === step.id) === 0}
+                          onClick={() => {
+                            const ids = d().steps.map((s) => s.id)
+                            const i = ids.indexOf(step.id)
+                            if (i <= 0) return
+                            ;[ids[i - 1], ids[i]] = [ids[i], ids[i - 1]]
+                            void act(() => reorderMatterSteps(d().id, ids), '已调整顺序')
+                          }}
+                        >上移</button>
+                        <button
+                          class={page.btnGhost}
+                          disabled={d().steps.findIndex((s) => s.id === step.id) === d().steps.length - 1}
+                          onClick={() => {
+                            const ids = d().steps.map((s) => s.id)
+                            const i = ids.indexOf(step.id)
+                            if (i < 0 || i >= ids.length - 1) return
+                            ;[ids[i + 1], ids[i]] = [ids[i], ids[i + 1]]
+                            void act(() => reorderMatterSteps(d().id, ids), '已调整顺序')
+                          }}
+                        >下移</button>
+                        <button
+                          class={page.btnGhost}
+                          onClick={() => setConfirmAction({
+                            title: '删除步骤',
+                            message: '确认删除此步？依据绑定会一并删除。',
+                            danger: true,
+                            fn: () => { void act(() => deleteMatterStep(step.id), '已删除步骤') },
+                          })}
+                        >删除</button>
                       </div>
                     </div>
                   )
@@ -302,7 +371,7 @@ const MatterDetail: Component = () => {
               />
               <label class={page.cardMeta}>
                 到期（可选）
-                <input type="date" class={styles.propDate} value={stepDue()} onInput={(e) => setStepDue(e.currentTarget.value)} />
+                <DueFields value={stepDue() || null} dateClass={styles.propDate} onChange={(v) => setStepDue(v ?? '')} />
               </label>
               <label class={page.cardMeta}>
                 <input type="checkbox" checked={requireEvidence()} onChange={(e) => setRequireEvidence(e.currentTarget.checked)} />
@@ -311,10 +380,44 @@ const MatterDetail: Component = () => {
               <button class={page.btn} disabled={!stepTitle().trim()} onClick={() => void addStep()}>添加步骤</button>
             </div>
           </div>
+            <div class={styles.footer}>
+              <Show when={d().status !== 'archived'}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setConfirmAction({
+                    title: '归档事项',
+                    message: '确认归档此事项？归档后可恢复。',
+                    fn: () => { void act(() => archiveMatter(d().id), '已归档').then((ok) => { if (ok) deselectMatter() }) },
+                  })}
+                >归档</Button>
+              </Show>
+              <Show when={d().status === 'archived'}>
+                <Button variant="secondary" onClick={() => void act(() => restoreMatter(d().id), '已恢复')}>恢复</Button>
+              </Show>
+              <Button
+                variant="danger"
+                onClick={() => setConfirmAction({
+                  title: '删除事项',
+                  message: '确认删除此事项？步骤与依据一并删除，不可撤销。',
+                  danger: true,
+                  fn: () => { void act(() => deleteMatter(d().id), '已删除').then((ok) => { if (ok) deselectMatter() }) },
+                })}
+              >删除</Button>
+            </div>
+          </>
           )
           }}
         </Show>
       </aside>
+      <ConfirmDialog
+        open={!!confirmAction()}
+        title={confirmAction()?.title ?? ''}
+        message={confirmAction()?.message ?? ''}
+        danger={confirmAction()?.danger}
+        confirmLabel="确认"
+        onConfirm={() => { confirmAction()?.fn(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </Show>
   )
 }

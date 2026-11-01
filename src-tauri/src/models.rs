@@ -257,6 +257,7 @@ pub struct MatterDetail {
     pub created_at: String,
     pub updated_at: String,
     pub completed_at: Option<String>,
+    pub notes: Option<String>,
     pub tags: Vec<Tag>,
     pub steps: Vec<MatterStep>,
     pub current_step: Option<MatterStepBrief>,

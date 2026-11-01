@@ -99,7 +99,7 @@ pub fn get_schedule(state: State<DbState>, date: String) -> Result<ScheduleDay, 
         "SELECT t.id, t.title, t.priority, t.due_date, COALESCE(t.estimated_minutes, 30), c.color
          FROM tasks t
          LEFT JOIN categories c ON t.category_id = c.id
-         WHERE t.due_date = ?1
+         WHERE substr(t.due_date,1,10) = ?1
            AND t.status = 'active'
            AND t.id NOT IN (SELECT task_id FROM schedule_entries WHERE date = ?1)
          ORDER BY t.priority DESC, t.created_at ASC"
@@ -155,7 +155,7 @@ pub fn auto_schedule(state: State<DbState>, date: String) -> Result<ScheduleDay,
         let mut stmt = conn.prepare(
             "SELECT t.id, t.title, t.priority, COALESCE(t.estimated_minutes, 30)
              FROM tasks t
-             WHERE t.due_date = ?1 AND t.status = 'active'
+             WHERE substr(t.due_date,1,10) = ?1 AND t.status = 'active'
              ORDER BY t.priority DESC, COALESCE(t.estimated_minutes, 30) ASC"
         ).map_err(|e| e.to_string())?;
 

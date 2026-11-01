@@ -1,5 +1,6 @@
 import { type Component, Show, createSignal, For, createEffect } from 'solid-js'
 import styles from './TaskDetail.module.css'
+import DueFields from '../shared/DueFields'
 import {
   taskDetail,
   deselectTask,
@@ -206,8 +207,11 @@ const TaskDetail: Component = () => {
 
               <div class={styles.propRow}>
                 <span class={styles.propLabel}>截止日期</span>
-                <input type="date" class={styles.propDate} value={detail()!.due_date ?? ''}
-                  onChange={(e) => updateProp({ due_date: e.currentTarget.value || null, clear_due_date: !e.currentTarget.value ? true : undefined })} />
+                <DueFields
+                  value={detail()!.due_date}
+                  dateClass={styles.propDate}
+                  onChange={(next) => updateProp({ due_date: next, clear_due_date: next ? undefined : true })}
+                />
                 <Show when={detail()!.due_date}>
                   <button class={styles.clearBtn} onClick={() => updateProp({ clear_due_date: true })} title="清除日期">×</button>
                 </Show>

@@ -4,7 +4,8 @@ import cardStyles from '../TaskCard/TaskCard.module.css'
 import Checkbox from '../shared/Checkbox'
 import type { AgendaItem } from '../../bindings/types'
 import { agendaRowCopy } from '../../utils/agendaMap'
-import { localDateString } from '../../utils/date'
+import { formatDue, isOverdueDue } from '../../utils/date'
+import { encodeDueDrag } from '../../utils/dueDrag'
 
 interface Props {
   title: string
@@ -42,13 +43,22 @@ const AgendaList: Component<Props> = (props) => {
           <For each={props.items}>
             {(item) => {
               const copy = agendaRowCopy(item)
-              const overdue = !!item.due_date && item.due_date < localDateString()
+              const overdue = isOverdueDue(item.due_date)
               return (
                 <div class={listStyles.taskRow}>
                   <div
                     class={`${cardStyles.card} ${overdue ? cardStyles.cardOverdue : ''}`}
                     role="button"
                     tabindex={0}
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.dataTransfer?.setData('text/plain', encodeDueDrag({
+                        kind: item.kind === 'task' ? 'task' : 'matter_step',
+                        id: item.id,
+                        due: item.due_date,
+                      }))
+                      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+                    }}
                     onClick={() => props.onClick(item)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -83,7 +93,7 @@ const AgendaList: Component<Props> = (props) => {
                           </Show>
                           <Show when={item.due_date}>
                             <span class={`${cardStyles.dueDate} ${overdue ? cardStyles.dueDateOverdue : ''}`}>
-                              {item.due_date}
+                              {formatDue(item.due_date!)}
                             </span>
                           </Show>
                         </div>

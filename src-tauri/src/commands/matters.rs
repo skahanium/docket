@@ -1,9 +1,10 @@
 use crate::db::{lock_conn, DbState};
 use crate::error::AppResult;
 use crate::matter::{
-    add_matter_step_on_conn, add_tag_to_matter_on_conn, complete_matter_step_on_conn,
-    create_blank_matter_on_conn, get_matter_on_conn, list_matters_on_conn, remove_tag_from_matter_on_conn,
-    reopen_matter_step_on_conn, skip_matter_step_on_conn, update_matter_on_conn,
+    add_matter_step_on_conn, add_tag_to_matter_on_conn, archive_matter_on_conn, complete_matter_step_on_conn,
+    create_blank_matter_on_conn, delete_matter_on_conn, delete_matter_step_on_conn, get_matter_on_conn,
+    list_matters_on_conn, remove_tag_from_matter_on_conn, reopen_matter_step_on_conn,
+    reorder_matter_steps_on_conn, restore_matter_on_conn, skip_matter_step_on_conn, update_matter_on_conn,
     update_matter_step_on_conn,
 };
 use crate::models::{MatterDetail, MatterSummary};
@@ -39,8 +40,10 @@ pub struct UpdateMatterInput {
     #[specta(type = Option<f64>)]
     pub category_id: Option<i64>,
     pub due_date: Option<String>,
+    pub notes: Option<String>,
     pub clear_category_id: Option<bool>,
     pub clear_due_date: Option<bool>,
+    pub clear_notes: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, Type)]
@@ -122,7 +125,20 @@ pub(crate) fn apply_update_matter_input(
     } else {
         input.due_date.as_deref().map(Some)
     };
-    update_matter_on_conn(conn, id, input.title.as_deref(), input.priority, category, due)
+    let notes = if input.clear_notes.unwrap_or(false) {
+        Some(None)
+    } else {
+        input.notes.as_deref().map(Some)
+    };
+    update_matter_on_conn(
+        conn,
+        id,
+        input.title.as_deref(),
+        input.priority,
+        category,
+        due,
+        notes,
+    )
 }
 
 #[tauri::command]
@@ -222,6 +238,51 @@ pub fn remove_tag_from_matter(
 ) -> Result<(), String> {
     let conn = lock_conn(&state)?;
     remove_tag_from_matter_on_conn(&conn, matter_id, tag_id)?;
+    crate::app_windows::emit_tasks_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn archive_matter(app: AppHandle, state: State<DbState>, id: i64) -> Result<(), String> {
+    let conn = lock_conn(&state)?;
+    archive_matter_on_conn(&conn, id)?;
+    crate::app_windows::emit_tasks_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn restore_matter(app: AppHandle, state: State<DbState>, id: i64) -> Result<(), String> {
+    let conn = lock_conn(&state)?;
+    restore_matter_on_conn(&conn, id)?;
+    crate::app_windows::emit_tasks_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_matter(app: AppHandle, state: State<DbState>, id: i64) -> Result<(), String> {
+    let conn = lock_conn(&state)?;
+    delete_matter_on_conn(&conn, id)?;
+    crate::app_windows::emit_tasks_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn reorder_matter_steps(
+    app: AppHandle,
+    state: State<DbState>,
+    matter_id: i64,
+    ordered_ids: Vec<i64>,
+) -> Result<(), String> {
+    let conn = lock_conn(&state)?;
+    reorder_matter_steps_on_conn(&conn, matter_id, &ordered_ids)?;
+    crate::app_windows::emit_tasks_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_matter_step(app: AppHandle, state: State<DbState>, step_id: i64) -> Result<(), String> {
+    let conn = lock_conn(&state)?;
+    delete_matter_step_on_conn(&conn, step_id)?;
     crate::app_windows::emit_tasks_changed(&app);
     Ok(())
 }

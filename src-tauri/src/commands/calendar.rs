@@ -31,9 +31,9 @@ pub fn get_calendar_month_on_conn(
 
     {
         let mut stmt = conn.prepare(
-            "SELECT due_date, COUNT(*) FROM tasks
-             WHERE due_date >= ?1 AND due_date <= ?2 AND status != 'archived'
-             GROUP BY due_date",
+            "SELECT substr(due_date,1,10), COUNT(*) FROM tasks
+             WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) <= ?2 AND status != 'archived'
+             GROUP BY substr(due_date,1,10)",
         )?;
         for row in stmt.query_map(rusqlite::params![first_str, last_str], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, i32>(1)?))
@@ -45,15 +45,39 @@ pub fn get_calendar_month_on_conn(
 
     {
         let mut stmt = conn.prepare(
-            "SELECT due_date, COUNT(*) FROM tasks
-             WHERE due_date >= ?1 AND due_date <= ?2 AND status = 'completed'
-             GROUP BY due_date",
+            "SELECT substr(due_date,1,10), COUNT(*) FROM tasks
+             WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) <= ?2 AND status = 'completed'
+             GROUP BY substr(due_date,1,10)",
         )?;
         for row in stmt.query_map(rusqlite::params![first_str, last_str], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, i32>(1)?))
         })? {
             let (d, c) = row?;
             completed_counts.insert(d, c);
+        }
+    }
+
+    {
+        let mut stmt = conn.prepare(
+            "SELECT substr(s.due_date,1,10), COUNT(*)
+             FROM matter_steps s
+             JOIN matters m ON m.id = s.matter_id
+             WHERE m.status = 'active'
+               AND s.status = 'pending'
+               AND s.due_date IS NOT NULL
+               AND substr(s.due_date,1,10) >= ?1 AND substr(s.due_date,1,10) <= ?2
+               AND s.id = (
+                 SELECT s2.id FROM matter_steps s2
+                 WHERE s2.matter_id = s.matter_id AND s2.status = 'pending'
+                 ORDER BY s2.sort_order ASC, s2.id ASC LIMIT 1
+               )
+             GROUP BY substr(s.due_date,1,10)",
+        )?;
+        for row in stmt.query_map(rusqlite::params![first_str, last_str], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i32>(1)?))
+        })? {
+            let (d, c) = row?;
+            *task_counts.entry(d).or_insert(0) += c;
         }
     }
 

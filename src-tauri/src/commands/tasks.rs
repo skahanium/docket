@@ -62,6 +62,9 @@ pub fn create_task_on_conn(conn: &Connection, input: CreateTaskInput) -> AppResu
     if input.title.trim().is_empty() {
         return Err(AppError::message("标题不能为空"));
     }
+    if let Some(ref due) = input.due_date {
+        crate::agenda::parse_due_date(due).map_err(AppError::InvalidDate)?;
+    }
     let now = Utc::now().to_rfc3339();
     let priority = input.priority.unwrap_or(0);
 
@@ -116,6 +119,7 @@ pub fn update_task(app: AppHandle, state: State<DbState>, id: i64, input: Update
         params.push(Box::new(priority));
     }
     if let Some(ref due_date) = input.due_date {
+        crate::agenda::parse_due_date(due_date)?;
         sets.push(format!("due_date = ?{}", params.len() + 1));
         params.push(Box::new(due_date.clone()));
     }
@@ -215,6 +219,30 @@ pub fn complete_task_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
     }
 
     tx.commit()?;
+    Ok(())
+}
+
+pub fn reopen_task_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
+    let now = Utc::now().to_rfc3339();
+    let n = conn.execute(
+        &format!(
+            "UPDATE tasks SET status='{}', completed_at=NULL, updated_at=?1 WHERE id=?2 AND status='{}'",
+            task_status::ACTIVE,
+            task_status::COMPLETED
+        ),
+        rusqlite::params![now, id],
+    )?;
+    if n == 0 {
+        return Err(AppError::TaskNotFound { id });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn reopen_task(app: AppHandle, state: State<DbState>, id: i64) -> Result<(), String> {
+    let conn = lock_conn(&state)?;
+    reopen_task_on_conn(&conn, id)?;
+    crate::app_windows::emit_tasks_changed(&app);
     Ok(())
 }
 
@@ -355,7 +383,7 @@ pub fn list_tasks_on_conn(
         params.push(Box::new(tag_id));
     }
     if let Some(ref due_date) = filters.due_date {
-        conditions.push(format!("t.due_date = ?{}", params.len() + 1));
+        conditions.push(format!("substr(t.due_date,1,10) = ?{}", params.len() + 1));
         params.push(Box::new(due_date.clone()));
     }
     if let Some(ref search) = filters.search_query {
@@ -684,5 +712,30 @@ mod list_tests {
 
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].title, "Tagged");
+    }
+
+    #[test]
+    fn reopen_task_restores_active_without_deleting_siblings() {
+        let conn = setup_conn();
+        let id = create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "可撤销".into(),
+                description: None,
+                priority: None,
+                due_date: None,
+                category_id: None,
+                recurrence_rule: None,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap();
+        complete_task_on_conn(&conn, id).unwrap();
+        let done = get_task_on_conn(&conn, id).unwrap();
+        assert_eq!(done.status, task_status::COMPLETED);
+        reopen_task_on_conn(&conn, id).unwrap();
+        let again = get_task_on_conn(&conn, id).unwrap();
+        assert_eq!(again.status, task_status::ACTIVE);
+        assert!(again.completed_at.is_none());
     }
 }

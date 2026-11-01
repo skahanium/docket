@@ -56,3 +56,23 @@ export function addTagToMatter(matterId: number, tagId: number): Promise<void> {
 export function removeTagFromMatter(matterId: number, tagId: number): Promise<void> {
   return invoke<void>('remove_tag_from_matter', { matterId, tagId })
 }
+
+export function archiveMatter(id: number): Promise<void> {
+  return invoke<void>('archive_matter', { id })
+}
+
+export function restoreMatter(id: number): Promise<void> {
+  return invoke<void>('restore_matter', { id })
+}
+
+export function deleteMatter(id: number): Promise<void> {
+  return invoke<void>('delete_matter', { id })
+}
+
+export function reorderMatterSteps(matterId: number, orderedIds: number[]): Promise<void> {
+  return invoke<void>('reorder_matter_steps', { matterId, orderedIds })
+}
+
+export function deleteMatterStep(stepId: number): Promise<void> {
+  return invoke<void>('delete_matter_step', { stepId })
+}

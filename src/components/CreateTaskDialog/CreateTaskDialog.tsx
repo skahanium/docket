@@ -13,6 +13,7 @@ import {
   listPlaybooks,
   selectMatter,
 } from '../../stores'
+import DueFields from '../shared/DueFields'
 
 interface Props {
   open: boolean
@@ -154,7 +155,7 @@ const CreateTaskDialog: Component<Props> = (props) => {
             <option value={1}>◉ 中</option>
             <option value={2}>◉◉ 高</option>
           </select>
-          <input type="date" class={styles.dateInput} value={dueDate()} onInput={(e) => setDueDate(e.currentTarget.value)} />
+          <DueFields value={dueDate() || null} dateClass={styles.dateInput} onChange={(v) => setDueDate(v ?? '')} />
           <select class={styles.select} value={categoryId() ?? ''} onChange={(e) => setCategoryId(e.currentTarget.value ? Number(e.currentTarget.value) : null)}>
             <option value="">无分类</option>
             <For each={categories() ?? []}>{(c) => <option value={c.id}>{c.name}</option>}</For>

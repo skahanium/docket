@@ -1,6 +1,7 @@
 import { type Component, Show, For, createSignal } from 'solid-js'
 import styles from './CalendarDay.module.css'
 import type { CalendarDayData } from '../../bindings/types'
+import { parseDueDrag, type DueDragPayload } from '../../utils/dueDrag'
 
 interface Props {
   data: CalendarDayData
@@ -8,7 +9,7 @@ interface Props {
   isSelected: boolean
   onSelect: () => void
   onDoubleClick: () => void
-  onDrop?: (taskId: number) => void
+  onDrop?: (payload: DueDragPayload) => void
 }
 
 const CalendarDay: Component<Props> = (props) => {
@@ -26,8 +27,8 @@ const CalendarDay: Component<Props> = (props) => {
   const handleDrop = (e: DragEvent) => {
     e.preventDefault()
     setDragOver(false)
-    const taskId = parseInt(e.dataTransfer?.getData('text/plain') ?? '', 10)
-    if (taskId > 0) props.onDrop?.(taskId)
+    const payload = parseDueDrag(e.dataTransfer?.getData('text/plain'))
+    if (payload) props.onDrop?.(payload)
   }
 
   const cellClass = () => {
@@ -42,7 +43,7 @@ const CalendarDay: Component<Props> = (props) => {
       class={cellClass()}
       role="gridcell"
       tabindex={0}
-      aria-label={`${dayNum}日，${props.data.task_count}项任务${hasPending ? `，${props.data.task_count - props.data.completed_count}项待完成` : ''}`}
+      aria-label={`${dayNum}日，${props.data.task_count}项${hasPending ? `，${props.data.task_count - props.data.completed_count}项待完成` : ''}`}
       onClick={props.onSelect}
       onDblClick={props.onDoubleClick}
       onKeyDown={(e) => { if (e.key === 'Enter') props.onSelect() }}

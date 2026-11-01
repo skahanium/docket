@@ -17,9 +17,11 @@
 | 依据 | `matter_step_links` | 步骤上的本地文件或文件夹路径，只关联不拷贝 |
 | 周期指标 | `cadences` + 过滤表 | 月 / 季 / 年；`target_count` 可空 |
 
-步骤状态：`pending` | `completed` | `skipped`。当前步派生：该事项中 `status='pending'` 且 `sort_order` 最小者。全部完成或跳过则事项 `completed`，写入 `completed_at`。
+步骤状态：`pending` | `completed` | `skipped`。当前步派生：该事项中 `status='pending'` 且 `sort_order` 最小者。全部完成或跳过则事项 `completed`，写入 `completed_at`。事项可归档（默认列表隐藏、事项库「看归档」可恢复）或硬删（步与依据 CASCADE）。步骤用 `UPDATE sort_order` 重排，禁止 DELETE+INSERT。
 
-事项创建后不能改 `playbook_id`。不做办案行业字段。
+`due_date`（任务 / 事项 / 步骤）是 TEXT：`YYYY-MM-DD` 或本地 `YYYY-MM-DDTHH:MM`。按日谓词用 `substr(due_date,1,10)`。步骤到期由 scheduler 扫 pending 步，写入 `due_notified`，不复用 `reminders.task_id`。
+
+事项创建后不能改 `playbook_id`。不做办案行业字段。事项可有 `notes` 说明。
 
 ## 依据
 
@@ -34,9 +36,12 @@
 
 - 任务：沿用 `agenda::today_active_predicate` / `overdue_active_predicate`（本地日历日）
 - 事项：每个 `active` 事项的当前步一律进入今日
-- 逾期：当前步或事项的 `due_date` 早于本地今日
+- 逾期：当前步或事项的到期**日**早于本地今日（时刻不参与按日比较）
 - 投影类型 `AgendaItem`（含 `category_id` / `tag_ids`），禁止把步骤插入 `tasks` 表
 - 今日/逾期侧栏按**单分类、单标签**筛议程（与任务列表相同：事项步跟事项的分类/标签；无分类项在选了分类时排除）
+- 月历 `task_count` 为当日项数：任务 + 进行中事项的当前 pending 步到期；点某日仍只筛任务列表
+- 议程/任务卡可拖到日历格改期；已有时刻只换日期前缀
+- 每日复盘一行：本地日 `completed_at` 的完成步数（`status=completed`，跳过不计）与办结事项数（不用 RFC3339 字面比）
 
 ## 指标过滤器
 
@@ -52,14 +57,14 @@ UI 期间文案含末日（`period_start` 至末日）；IPC `period_end` 仍是
 ## 主要 IPC
 
 - 模板：`list_playbooks`, `create_playbook`, `update_playbook`, `set_playbook_steps`
-- 事项：`list_matters`, `create_matter`, `create_blank_matter`, `get_matter`, `update_matter`, `update_matter_step`, `complete_matter_step`, `skip_matter_step`, `reopen_matter_step`, `add_matter_step`
+- 事项：`list_matters`, `create_matter`, `create_blank_matter`, `get_matter`, `update_matter`, `archive_matter`, `restore_matter`, `delete_matter`, `update_matter_step`, `reorder_matter_steps`, `delete_matter_step`, `complete_matter_step`, `skip_matter_step`, `reopen_matter_step`, `add_matter_step`
 - 依据：`add_step_link`, `remove_step_link`, `replace_step_link`, `open_step_link`, `reveal_step_link`
 - 议程：`list_agenda`
 - 指标：`list_cadences`, `create_cadence`, `update_cadence`, `get_cadence_progress`
 
 ## 迁移
 
-SQLite `_migrations` **v6**。v5 建表历史保留（`cadence_playbooks` / `cadence_tags` 原 CASCADE）；v6 重建这两张过滤表为 `playbook_id` / `tag_id` **ON DELETE RESTRICT**。`focus_sessions` / `schedule_entries` 本波不改外键。
+SQLite `_migrations` **v7**。v5 建表历史保留；v6 将指标过滤表改为 `ON DELETE RESTRICT`；v7 增加 `matters.notes`、`matter_steps.due_notified`。`focus_sessions` / `schedule_entries` 不改外键。
 
 ## 非目标
 

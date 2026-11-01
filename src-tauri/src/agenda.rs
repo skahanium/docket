@@ -19,29 +19,65 @@ fn qualify(alias: &str, column: &str) -> String {
     }
 }
 
+pub fn due_day_expr(alias: &str) -> String {
+    format!("substr({},1,10)", qualify(alias, "due_date"))
+}
+
 /// Active tasks due today, or high-priority not-yet-due (including no due date).
 pub fn today_active_predicate(alias: &str, today_placeholder: &str) -> String {
+    let due_day = due_day_expr(alias);
     let due = qualify(alias, "due_date");
     let pri = qualify(alias, "priority");
     format!(
-        "({due} = {today_placeholder} OR ({pri} >= 2 AND ({due} IS NULL OR {due} >= {today_placeholder})))"
+        "({due_day} = {today_placeholder} OR ({pri} >= 2 AND ({due} IS NULL OR {due_day} >= {today_placeholder})))"
     )
 }
 
 pub fn overdue_active_predicate(alias: &str, today_placeholder: &str) -> String {
     let due = qualify(alias, "due_date");
-    format!("{due} IS NOT NULL AND {due} < {today_placeholder}")
+    let due_day = due_day_expr(alias);
+    format!("{due} IS NOT NULL AND {due_day} < {today_placeholder}")
 }
 
 pub fn parse_calendar_date(date: &str) -> Result<NaiveDate, String> {
     NaiveDate::parse_from_str(date, "%Y-%m-%d").map_err(|_| format!("invalid date: {date}"))
 }
 
+/// Accepts `YYYY-MM-DD` or local `YYYY-MM-DDTHH:MM`.
+pub fn parse_due_date(value: &str) -> Result<(), String> {
+    if value.len() == 10 {
+        parse_calendar_date(value)?;
+        return Ok(());
+    }
+    if value.len() == 16 && value.as_bytes().get(10) == Some(&b'T') {
+        parse_calendar_date(&value[..10])?;
+        let hh: u32 = value[11..13]
+            .parse()
+            .map_err(|_| format!("invalid date: {value}"))?;
+        let mm: u32 = value[14..16]
+            .parse()
+            .map_err(|_| format!("invalid date: {value}"))?;
+        if value.as_bytes()[13] != b':' || hh > 23 || mm > 59 {
+            return Err(format!("invalid date: {value}"));
+        }
+        return Ok(());
+    }
+    Err(format!("invalid date: {value}"))
+}
+
+pub fn due_day(value: &str) -> Option<String> {
+    if value.len() >= 10 && parse_calendar_date(&value[..10]).is_ok() {
+        Some(value[..10].to_string())
+    } else {
+        None
+    }
+}
+
 pub fn format_calendar_date(d: NaiveDate) -> String {
     d.format("%Y-%m-%d").to_string()
 }
 
-fn local_midnight(date: NaiveDate) -> Result<DateTime<Local>, String> {
+pub(crate) fn local_midnight(date: NaiveDate) -> Result<DateTime<Local>, String> {
     let naive = date
         .and_hms_opt(0, 0, 0)
         .ok_or_else(|| format!("invalid midnight for {date}"))?;
@@ -154,7 +190,7 @@ fn list_current_step_agenda(
     overdue_only: bool,
 ) -> AppResult<Vec<AgendaItem>> {
     let overdue_clause = if overdue_only {
-        "AND ((s.due_date IS NOT NULL AND s.due_date < ?2) OR (m.due_date IS NOT NULL AND m.due_date < ?2))"
+        "AND ((s.due_date IS NOT NULL AND substr(s.due_date,1,10) < ?2) OR (m.due_date IS NOT NULL AND substr(m.due_date,1,10) < ?2))"
     } else {
         ""
     };
@@ -289,14 +325,33 @@ mod tests {
     #[test]
     fn today_predicate_qualifies_alias() {
         let sql = today_active_predicate("t", "?3");
-        assert!(sql.contains("t.due_date = ?3"));
+        assert!(sql.contains("substr(t.due_date,1,10) = ?3"));
         assert!(sql.contains("t.priority >= 2"));
     }
 
     #[test]
     fn overdue_predicate_unqualified() {
         let sql = overdue_active_predicate("", "?2");
-        assert_eq!(sql, "due_date IS NOT NULL AND due_date < ?2");
+        assert_eq!(
+            sql,
+            "due_date IS NOT NULL AND substr(due_date,1,10) < ?2"
+        );
+    }
+
+    #[test]
+    fn parse_due_date_accepts_day_or_local_time() {
+        assert!(parse_due_date("2026-11-01").is_ok());
+        assert!(parse_due_date("2026-11-01T15:00").is_ok());
+        assert!(parse_due_date("2026-11-01T15:00:00").is_err());
+        assert!(parse_due_date("2026-11-01 15:00").is_err());
+        assert!(parse_due_date("file:///tmp").is_err());
+    }
+
+    #[test]
+    fn due_day_strips_optional_time() {
+        assert_eq!(due_day("2026-11-01").as_deref(), Some("2026-11-01"));
+        assert_eq!(due_day("2026-11-01T15:00").as_deref(), Some("2026-11-01"));
+        assert_eq!(due_day("bad"), None);
     }
 
     #[test]
@@ -460,17 +515,17 @@ mod tests {
         let overdue = list_agenda_on_conn(&conn, "overdue").unwrap();
         assert!(overdue.iter().any(|i| i.kind == AGENDA_KIND_MATTER_STEP && i.matter_id == Some(mid)));
 
-        update_matter_on_conn(&conn, mid, None, None, None, Some(Some(tomorrow.as_str()))).unwrap();
+        update_matter_on_conn(&conn, mid, None, None, None, Some(Some(tomorrow.as_str())), None).unwrap();
         let later = list_agenda_on_conn(&conn, "overdue").unwrap();
         assert!(!later.iter().any(|i| i.matter_id == Some(mid)));
 
-        update_matter_on_conn(&conn, mid, None, None, None, Some(None)).unwrap();
+        update_matter_on_conn(&conn, mid, None, None, None, Some(None), None).unwrap();
         let step = current_pending_step(&conn, mid).unwrap().unwrap();
         update_matter_step_on_conn(&conn, step.id, Some(Some(yesterday.as_str()))).unwrap();
         let by_step = list_agenda_on_conn(&conn, "overdue").unwrap();
         assert!(by_step.iter().any(|i| i.kind == AGENDA_KIND_MATTER_STEP && i.matter_id == Some(mid)));
 
-        update_matter_on_conn(&conn, mid, None, None, None, Some(Some(tomorrow.as_str()))).unwrap();
+        update_matter_on_conn(&conn, mid, None, None, None, Some(Some(tomorrow.as_str())), None).unwrap();
         let step_over_matter = list_agenda_on_conn(&conn, "overdue").unwrap();
         assert!(
             step_over_matter
@@ -478,6 +533,32 @@ mod tests {
                 .any(|i| i.kind == AGENDA_KIND_MATTER_STEP && i.matter_id == Some(mid)),
             "事项 due 在未来时，当前步昨日 due 仍应逾期（OR，不是 AND）"
         );
+    }
+
+    #[test]
+    fn today_agenda_includes_task_with_local_time() {
+        use crate::commands::tasks::{create_task_on_conn, CreateTaskInput};
+        use crate::db;
+        use rusqlite::Connection;
+
+        let conn = Connection::open_in_memory().unwrap();
+        db::init_db(&conn).unwrap();
+        let today = crate::time::local_today_date();
+        create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "带时刻今日".into(),
+                description: None,
+                priority: Some(0),
+                due_date: Some(format!("{today}T15:00")),
+                category_id: None,
+                recurrence_rule: None,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap();
+        let items = list_agenda_on_conn(&conn, "today").unwrap();
+        assert!(items.iter().any(|i| i.title == "带时刻今日"));
     }
 
     #[test]

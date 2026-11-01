@@ -20,6 +20,10 @@ export function completeTask(id: number): Promise<void> {
   return invoke<void>('complete_task', { id })
 }
 
+export function reopenTask(id: number): Promise<void> {
+  return invoke<void>('reopen_task', { id })
+}
+
 export function deleteTask(id: number): Promise<void> {
   return invoke<void>('delete_task', { id })
 }

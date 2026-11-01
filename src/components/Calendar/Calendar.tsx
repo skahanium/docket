@@ -9,11 +9,15 @@ import {
   selectedDate,
   setSelectedDate,
   updateTask,
+  updateMatterStep,
   invalidateAfterTaskMutation,
   pushToast,
+  tasks,
+  agenda,
 } from '../../stores'
 import CalendarDay from '../CalendarDay/CalendarDay'
-import { localDateString } from '../../utils/date'
+import { localDateString, replaceDueDay } from '../../utils/date'
+import type { DueDragPayload } from '../../utils/dueDrag'
 
 const WEEKDAYS = ['一','二','三','四','五','六','日']
 
@@ -30,9 +34,18 @@ const Calendar: Component<Props> = (props) => {
   const days = () => calendarData() ?? []
   const offset = days().length > 0 ? (new Date(days()[0].date + 'T00:00:00').getDay() + 6) % 7 : 0
 
-  const handleDrop = async (date: string, taskId: number) => {
+  const handleDrop = async (date: string, payload: DueDragPayload) => {
     try {
-      await updateTask(taskId, { due_date: date })
+      const existing = payload.due
+        ?? (payload.kind === 'task'
+          ? (tasks() ?? []).find((t) => t.id === payload.id)?.due_date ?? null
+          : (agenda() ?? []).find((i) => i.kind === 'matter_step' && i.id === payload.id)?.due_date ?? null)
+      const next = replaceDueDay(existing, date)
+      if (payload.kind === 'task') {
+        await updateTask(payload.id, { due_date: next })
+      } else {
+        await updateMatterStep(payload.id, { due_date: next })
+      }
       pushToast('success', '日期已更新')
       invalidateAfterTaskMutation()
     } catch (e) {
@@ -79,7 +92,7 @@ const Calendar: Component<Props> = (props) => {
                 isSelected={selectedDate() === day.date}
                 onSelect={() => setSelectedDate(selectedDate() === day.date ? null : day.date)}
                 onDoubleClick={() => props.onDoubleClickDate(day.date)}
-                onDrop={(taskId: number) => handleDrop(day.date, taskId)}
+                onDrop={(payload) => handleDrop(day.date, payload)}
               />
             )}
           </For>

@@ -1,5 +1,5 @@
 use crate::commands::desktop_panel::panel_counts_on_conn;
-use chrono::{DateTime, Days, Local, NaiveDate, Timelike};
+use chrono::{DateTime, Days, Local, NaiveDate, TimeZone, Timelike};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -150,6 +150,98 @@ pub fn overdue_reminder_body(count: usize) -> String {
     format!("你有 {count} 项已逾期")
 }
 
+pub fn step_due_body(matter_title: &str, step_title: &str) -> String {
+    format!("事项到期：{matter_title} · {step_title}")
+}
+
+fn due_local_datetime(due: &str) -> Option<DateTime<Local>> {
+    crate::agenda::parse_due_date(due).ok()?;
+    if due.len() == 10 {
+        let d = crate::agenda::parse_calendar_date(due).ok()?;
+        return crate::agenda::local_midnight(d).ok();
+    }
+    let d = crate::agenda::parse_calendar_date(&due[..10]).ok()?;
+    let hh: u32 = due[11..13].parse().ok()?;
+    let mm: u32 = due[14..16].parse().ok()?;
+    let naive = d.and_hms_opt(hh, mm, 0)?;
+    match Local.from_local_datetime(&naive) {
+        chrono::LocalResult::Single(dt) | chrono::LocalResult::Ambiguous(dt, _) => Some(dt),
+        chrono::LocalResult::None => None,
+    }
+}
+
+pub fn due_reached_at(due: &str, now: DateTime<Local>) -> bool {
+    due_local_datetime(due).map(|dt| now >= dt).unwrap_or(false)
+}
+
+pub struct DueMatterStep {
+    pub step_id: i64,
+    pub body: String,
+}
+
+pub fn collect_due_matter_steps(
+    conn: &Connection,
+    now: DateTime<Local>,
+) -> Result<Vec<DueMatterStep>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT s.id, m.title, s.title, s.due_date
+         FROM matter_steps s
+         JOIN matters m ON m.id = s.matter_id
+         WHERE s.status = 'pending'
+           AND s.due_notified = 0
+           AND s.due_date IS NOT NULL
+           AND m.status = 'active'",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+        ))
+    })?;
+    let mut out = Vec::new();
+    for row in rows.flatten() {
+        let (step_id, matter_title, step_title, due) = row;
+        if due_reached_at(&due, now) {
+            out.push(DueMatterStep {
+                step_id,
+                body: step_due_body(&matter_title, &step_title),
+            });
+        }
+    }
+    Ok(out)
+}
+
+pub fn mark_step_due_notified(conn: &Connection, step_id: i64) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "UPDATE matter_steps SET due_notified=1 WHERE id=?1",
+        rusqlite::params![step_id],
+    )?;
+    Ok(())
+}
+
+fn process_step_due_reminders(app: &AppHandle, conn: &Connection) {
+    let now = Local::now();
+    let due = match collect_due_matter_steps(conn, now) {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!("collect due matter steps failed: {e}");
+            return;
+        }
+    };
+    for item in due {
+        if mark_step_due_notified(conn, item.step_id).is_ok() {
+            let _ = app
+                .notification()
+                .builder()
+                .title("Docket")
+                .body(item.body)
+                .show();
+        }
+    }
+}
+
 fn process_reminders(app: &AppHandle, conn: &Connection) {
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -211,6 +303,7 @@ pub fn start_reminder_loop(app: AppHandle, db: Arc<Mutex<Connection>>) {
         };
 
         process_reminders(&app, &conn);
+        process_step_due_reminders(&app, &conn);
         maybe_daily_summary(&app, &conn);
         maybe_overdue_reminder(&app, &conn);
     });
@@ -243,5 +336,54 @@ mod tests {
         let body = overdue_reminder_body(3);
         assert!(body.contains("3 项已逾期"));
         assert!(!body.contains("任务"));
+    }
+
+    #[test]
+    fn date_only_due_is_reached_from_local_midnight() {
+        let now = local_at(0, 0);
+        assert!(due_reached_at("2026-10-28", now));
+        assert!(due_reached_at("2026-10-27", now));
+        assert!(!due_reached_at("2026-10-29", now));
+    }
+
+    #[test]
+    fn timed_due_compares_local_clock() {
+        assert!(!due_reached_at("2026-10-28T15:00", local_at(14, 59)));
+        assert!(due_reached_at("2026-10-28T15:00", local_at(15, 0)));
+    }
+
+    #[test]
+    fn collect_due_steps_pending_once_then_reset_on_reschedule() {
+        use crate::db;
+        use crate::matter::{
+            add_matter_step_on_conn, complete_matter_step_on_conn, create_blank_matter_on_conn,
+            current_pending_step, skip_matter_step_on_conn, update_matter_step_on_conn,
+        };
+        use rusqlite::Connection;
+
+        let conn = Connection::open_in_memory().unwrap();
+        db::init_db(&conn).unwrap();
+        let mid = create_blank_matter_on_conn(&conn, "报税", 0, None, None).unwrap();
+        let due_step = add_matter_step_on_conn(&conn, mid, "填表", false, Some("2020-01-01"), None).unwrap();
+        let later = add_matter_step_on_conn(&conn, mid, "未到期", false, Some("2099-01-01"), None).unwrap();
+        let done = add_matter_step_on_conn(&conn, mid, "已完成", false, Some("2020-01-01"), None).unwrap();
+        complete_matter_step_on_conn(&conn, done).unwrap();
+        let skipped = add_matter_step_on_conn(&conn, mid, "已跳过", false, Some("2020-01-01"), None).unwrap();
+        skip_matter_step_on_conn(&conn, skipped).unwrap();
+
+        let now = Local::now();
+        let first = collect_due_matter_steps(&conn, now).unwrap();
+        assert!(first.iter().any(|s| s.step_id == due_step && s.body.contains("报税") && s.body.contains("填表")));
+        assert!(!first.iter().any(|s| s.step_id == later));
+        assert!(!first.iter().any(|s| s.step_id == done || s.step_id == skipped));
+
+        mark_step_due_notified(&conn, due_step).unwrap();
+        let again = collect_due_matter_steps(&conn, now).unwrap();
+        assert!(!again.iter().any(|s| s.step_id == due_step));
+
+        update_matter_step_on_conn(&conn, due_step, Some(Some("2020-01-02"))).unwrap();
+        let after_change = collect_due_matter_steps(&conn, now).unwrap();
+        assert!(after_change.iter().any(|s| s.step_id == due_step));
+        let _ = current_pending_step(&conn, mid);
     }
 }

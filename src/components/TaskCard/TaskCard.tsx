@@ -2,7 +2,8 @@ import { type Component } from 'solid-js'
 import styles from './TaskCard.module.css'
 import Checkbox from '../shared/Checkbox'
 import type { TaskSummary } from '../../bindings/types'
-import { localDateString } from '../../utils/date'
+import { formatDue, isOverdueDue } from '../../utils/date'
+import { encodeDueDrag } from '../../utils/dueDrag'
 
 interface Props {
   task: TaskSummary
@@ -18,11 +19,11 @@ const TaskCard: Component<Props> = (props) => {
   const completed = t.status === 'completed'
   const hasProgress = t.subtasks_progress.total > 0
   const pct = hasProgress ? Math.round((t.subtasks_progress.completed / t.subtasks_progress.total) * 100) : 0
-  const overdue = !completed && !!t.due_date && t.due_date < localDateString()
+  const overdue = !completed && isOverdueDue(t.due_date)
   const showChk = props.showCheckbox !== false
 
   const handleDragStart = (e: DragEvent) => {
-    e.dataTransfer?.setData('text/plain', String(t.id))
+    e.dataTransfer?.setData('text/plain', encodeDueDrag({ kind: 'task', id: t.id, due: t.due_date }))
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
     props.onDragStart?.(t.id, e)
   }
@@ -50,7 +51,7 @@ const TaskCard: Component<Props> = (props) => {
 
         {(t.due_date || t.tags.length > 0 || hasProgress) && (
           <div class={styles.metaRow}>
-            {t.due_date && <span class={`${styles.dueDate} ${overdue ? styles.dueDateOverdue : ''}`}>{t.due_date}</span>}
+            {t.due_date && <span class={`${styles.dueDate} ${overdue ? styles.dueDateOverdue : ''}`}>{formatDue(t.due_date)}</span>}
             {t.tags.map((tag) => (
               <span class={styles.tag} style={{ background: `${tag.color ?? '#737373'}16`, color: tag.color ?? 'var(--text-sub)' }}>{tag.name}</span>
             ))}

@@ -49,7 +49,7 @@ export {
 } from './calendarUi'
 
 export type { Toast } from './toast'
-export { toasts, setToasts, pushToast } from './toast'
+export { toasts, setToasts, pushToast, dismissToast } from './toast'
 
 export {
   tasks,

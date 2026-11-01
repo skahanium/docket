@@ -164,7 +164,7 @@ pub fn instantiate_matter_on_conn(
     playbook_exists(conn, playbook_id)?;
     let title = require_title(title)?;
     if let Some(d) = due_date {
-        crate::agenda::parse_calendar_date(d).map_err(AppError::InvalidDate)?;
+        crate::agenda::parse_due_date(d).map_err(AppError::InvalidDate)?;
     }
     let steps = load_steps(conn, playbook_id)?;
     let now = chrono::Utc::now().to_rfc3339();

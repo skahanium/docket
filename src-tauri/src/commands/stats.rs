@@ -19,7 +19,7 @@ pub fn statistics_on_conn(conn: &Connection) -> Result<Statistics, String> {
 
     let today_count: i32 = conn
         .query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status='active' AND due_date=?1",
+            "SELECT COUNT(*) FROM tasks WHERE status='active' AND substr(due_date,1,10)=?1",
             rusqlite::params![today],
             |row| row.get(0),
         )

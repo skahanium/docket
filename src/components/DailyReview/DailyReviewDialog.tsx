@@ -83,6 +83,9 @@ const DailyReviewDialog: Component<Props> = (props) => {
               <p class={styles.summaryLabel}>预估准确度</p>
             </div>
           </div>
+          <p class={styles.dateSub}>
+            完成 {data()!.completed_steps} 步 · {data()!.completed_matters} 件事项
+          </p>
 
           {/* Completed tasks */}
           <Show when={data()!.completed_tasks.length > 0}>

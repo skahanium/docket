@@ -115,6 +115,8 @@ export type DailyReview = {
 	total_focus_minutes: number,
 	focus_sessions: number,
 	plan_accuracy: number,
+	completed_steps: number,
+	completed_matters: number,
 };
 
 export type DesktopPanelSnapshot = {
@@ -172,6 +174,7 @@ export type MatterDetail = {
 	created_at: string,
 	updated_at: string,
 	completed_at: string | null,
+	notes: string | null,
 	tags: Tag[],
 	steps: MatterStep[],
 	current_step: MatterStepBrief | null,
@@ -413,8 +416,10 @@ export type UpdateMatterInput = {
 	priority: number | null,
 	category_id: number | null,
 	due_date: string | null,
+	notes: string | null,
 	clear_category_id: boolean | null,
 	clear_due_date: boolean | null,
+	clear_notes: boolean | null,
 };
 
 export type UpdateMatterStepInput = {

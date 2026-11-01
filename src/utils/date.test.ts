@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { addDaysLocal, dayDiffFromToday, localDateString, parseLocalDate } from './date'
+import {
+  addDaysLocal,
+  composeDue,
+  dayDiffFromToday,
+  dueDay,
+  formatDue,
+  isOverdueDue,
+  localDateString,
+  parseLocalDate,
+  replaceDueDay,
+} from './date'
 
 describe('date utils', () => {
   it('addDaysLocal does not use UTC midnight', () => {
@@ -39,5 +49,34 @@ describe('date utils', () => {
     expect(today === localDateString(new Date())).toBe(true)
     const ds = '2026-06-01'
     expect(ds === localDateString(parseLocalDate(ds))).toBe(true)
+  })
+
+  it('dueDay strips optional local time', () => {
+    expect(dueDay('2026-11-01')).toBe('2026-11-01')
+    expect(dueDay('2026-11-01T15:00')).toBe('2026-11-01')
+    expect(dueDay(null)).toBeNull()
+  })
+
+  it('composeDue keeps date-only unless time is set', () => {
+    expect(composeDue('2026-11-01', '')).toBe('2026-11-01')
+    expect(composeDue('2026-11-01', '15:00')).toBe('2026-11-01T15:00')
+    expect(composeDue('', '15:00')).toBeNull()
+  })
+
+  it('isOverdueDue compares calendar day prefix', () => {
+    expect(isOverdueDue('2026-10-31T23:00', '2026-11-01')).toBe(true)
+    expect(isOverdueDue('2026-11-01T08:00', '2026-11-01')).toBe(false)
+    expect(isOverdueDue('2026-11-01', '2026-11-01')).toBe(false)
+  })
+
+  it('formatDue shows time only when present', () => {
+    expect(formatDue('2026-11-01')).toBe('2026-11-01')
+    expect(formatDue('2026-11-01T15:00')).toBe('2026-11-01 15:00')
+  })
+
+  it('replaceDueDay keeps existing clock', () => {
+    expect(replaceDueDay('2026-11-01T15:00', '2026-11-08')).toBe('2026-11-08T15:00')
+    expect(replaceDueDay('2026-11-01', '2026-11-08')).toBe('2026-11-08')
+    expect(replaceDueDay(null, '2026-11-08')).toBe('2026-11-08')
   })
 })

@@ -323,6 +323,15 @@ pub fn init_db(conn: &Connection) -> SqlResult<()> {
         migrate_v6_cadence_filters(conn)?;
     }
 
+    if current_version < 7 {
+        conn.execute_batch(
+            "ALTER TABLE matters ADD COLUMN notes TEXT;
+             ALTER TABLE matter_steps ADD COLUMN due_notified INTEGER NOT NULL DEFAULT 0;",
+        )?;
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute("INSERT INTO _migrations (version, applied_at) VALUES (7, ?1)", [&now])?;
+    }
+
     Ok(())
 }
 
@@ -719,7 +728,23 @@ mod tests {
         let version: i32 = conn
             .query_row("SELECT MAX(version) FROM _migrations", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 6);
+        assert_eq!(version, 7);
+        let notes: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('matters') WHERE name='notes'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let due_notified: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('matter_steps') WHERE name='due_notified'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(notes, 1);
+        assert_eq!(due_notified, 1);
     }
 
     #[test]
