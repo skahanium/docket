@@ -1,7 +1,17 @@
-import { type Component, For } from 'solid-js'
+import { type Component, For, createEffect, createSignal, onCleanup, onMount } from 'solid-js'
 import styles from './Sidebar.module.css'
 import type { ViewKind } from '../../stores'
 import type { Category, Tag } from '../../bindings/types'
+import {
+  SIDEBAR_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_MIN,
+  applySidebarWidthVar,
+  clampSidebarPreferred,
+  clampSidebarWidth,
+  persistSidebarWidth,
+  readStoredSidebarWidth,
+  sidebarWidthMax,
+} from '../../utils/sidebarWidth'
 
 interface Props {
   activeView: ViewKind
@@ -32,8 +42,84 @@ const GearIcon = () => (
 )
 
 const Sidebar: Component<Props> = (props) => {
+  let preferred = readStoredSidebarWidth()
+  const [width, setWidth] = createSignal(clampSidebarWidth(preferred))
+  const [dragging, setDragging] = createSignal(false)
+  let dragOriginX = 0
+  let dragOriginW = SIDEBAR_WIDTH_DEFAULT
+  applySidebarWidthVar(width())
+
+  const commit = (next: number, persist = false) => {
+    preferred = clampSidebarPreferred(next)
+    const w = clampSidebarWidth(preferred)
+    setWidth(w)
+    applySidebarWidthVar(w)
+    if (persist) persistSidebarWidth(preferred)
+  }
+
+  const onHandlePointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    dragOriginX = e.clientX
+    dragOriginW = width()
+    setDragging(true)
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  const onHandlePointerMove = (e: PointerEvent) => {
+    if (!dragging()) return
+    commit(dragOriginW + (e.clientX - dragOriginX))
+  }
+
+  const onHandlePointerUp = () => {
+    if (!dragging()) return
+    setDragging(false)
+    persistSidebarWidth(width())
+  }
+
+  const onHandleDblClick = () => commit(SIDEBAR_WIDTH_DEFAULT, true)
+
+  const onHandleKeyDown = (e: KeyboardEvent) => {
+    const step = e.shiftKey ? 32 : 8
+    if (e.key === 'ArrowLeft') { e.preventDefault(); commit(width() - step, true) }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); commit(width() + step, true) }
+    else if (e.key === 'Home') { e.preventDefault(); commit(SIDEBAR_WIDTH_MIN, true) }
+    else if (e.key === 'End') { e.preventDefault(); commit(sidebarWidthMax(), true) }
+  }
+
+  createEffect(() => {
+    document.body.classList.toggle('docket-sidebar-resizing', dragging())
+  })
+  onMount(() => {
+    const onResize = () => {
+      const w = clampSidebarWidth(preferred)
+      setWidth(w)
+      applySidebarWidthVar(w)
+    }
+    window.addEventListener('resize', onResize)
+    onCleanup(() => window.removeEventListener('resize', onResize))
+  })
+  onCleanup(() => document.body.classList.remove('docket-sidebar-resizing'))
+
   return (
-    <aside class={styles.sidebar}>
+    <aside class={styles.sidebar} style={{ width: `${width()}px` }}>
+      <div
+        class={`${styles.resizeHandle} ${dragging() ? styles.resizeHandleActive : ''}`}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调整侧栏宽度"
+        aria-valuemin={SIDEBAR_WIDTH_MIN}
+        aria-valuemax={sidebarWidthMax()}
+        aria-valuenow={width()}
+        aria-valuetext={`${width()} 像素`}
+        tabindex="0"
+        onPointerDown={onHandlePointerDown}
+        onPointerMove={onHandlePointerMove}
+        onPointerUp={onHandlePointerUp}
+        onPointerCancel={onHandlePointerUp}
+        onDblClick={onHandleDblClick}
+        onKeyDown={onHandleKeyDown}
+      />
       <div class={styles.scroll}>
         <div class={styles.section}>
           <p class={styles.sectionLabel}>视图</p>
@@ -63,7 +149,7 @@ const Sidebar: Component<Props> = (props) => {
                   onClick={() => props.onCategorySelect(props.activeCategoryId === c.id ? null : c.id)}
                 >
                   <span class={styles.dot} style={{ background: c.color ?? 'var(--accent)' }} />
-                  {c.name}
+                  <span class={styles.itemLabel}>{c.name}</span>
                 </button>
               )}
             </For>
@@ -82,7 +168,7 @@ const Sidebar: Component<Props> = (props) => {
                   onClick={() => props.onTagSelect(props.activeTagId === t.id ? null : t.id)}
                 >
                   <span class={styles.dot} style={{ background: t.color ?? 'var(--text-label)' }} />
-                  {t.name}
+                  <span class={styles.itemLabel}>{t.name}</span>
                 </button>
               )}
             </For>

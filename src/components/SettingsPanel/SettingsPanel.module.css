@@ -1,4 +1,4 @@
-.page { padding: 32px 36px; max-width: 640px; }
+.page { padding: 32px 36px; }
 .themeRow { display: flex; gap: 8px; flex-wrap: wrap; }
 .section { margin-bottom: 28px; }
 .sectionTitle { font-size: 13px; font-weight: 600; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }

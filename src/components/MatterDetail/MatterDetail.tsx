@@ -273,15 +273,15 @@ const MatterDetail: Component = () => {
                       id={`matter-step-${step.id}`}
                       class={`${page.step} ${current ? page.stepCurrent : ''} ${step.status !== 'pending' ? page.stepDone : ''}`}
                     >
-                      <span>{step.status === 'completed' ? '✓' : step.status === 'skipped' ? '–' : current ? '→' : '·'}</span>
-                      <div>
-                        <div>{step.title}</div>
+                      <span class={page.stepMark}>{step.status === 'completed' ? '✓' : step.status === 'skipped' ? '–' : current ? '→' : '·'}</span>
+                      <div class={page.stepBody}>
+                        <div class={page.stepTitle}>{step.title}</div>
                         <div class={page.cardMeta}>
                           {STEP_LABEL[step.status]}
                           {step.evidence_required ? ' · 建议有依据' : ''}
                           {step.missing_evidence ? ' · 缺依据' : ''}
                         </div>
-                        <div class={styles.propRow} style="padding: 4px 0; grid-template-columns: minmax(0, 1fr) auto;">
+                        <div class={page.stepDue}>
                           <DueFields
                             value={step.due_date}
                             dateClass={styles.propDate}
@@ -312,48 +312,48 @@ const MatterDetail: Component = () => {
                             </div>
                           )}
                         </For>
-                      </div>
-                      <div class={page.row}>
-                        <Show when={step.status === 'pending'}>
-                          <button class={page.btn} onClick={() => void act(() => completeMatterStep(step.id), '已完成此步')}>完成</button>
-                          <button class={page.btn} onClick={() => void act(() => skipMatterStep(step.id), '已跳过')}>跳过</button>
-                        </Show>
-                        <Show when={step.status !== 'pending'}>
-                          <button class={page.btn} onClick={() => void act(() => reopenMatterStep(step.id), '已重开')}>回头</button>
-                        </Show>
-                        <button class={page.btn} onClick={() => void bindPath(step.id, false)}>文件</button>
-                        <button class={page.btn} onClick={() => void bindPath(step.id, true)}>文件夹</button>
-                        <button
-                          class={page.btnGhost}
-                          disabled={d().steps.findIndex((s) => s.id === step.id) === 0}
-                          onClick={() => {
-                            const ids = d().steps.map((s) => s.id)
-                            const i = ids.indexOf(step.id)
-                            if (i <= 0) return
-                            ;[ids[i - 1], ids[i]] = [ids[i], ids[i - 1]]
-                            void act(() => reorderMatterSteps(d().id, ids), '已调整顺序')
-                          }}
-                        >上移</button>
-                        <button
-                          class={page.btnGhost}
-                          disabled={d().steps.findIndex((s) => s.id === step.id) === d().steps.length - 1}
-                          onClick={() => {
-                            const ids = d().steps.map((s) => s.id)
-                            const i = ids.indexOf(step.id)
-                            if (i < 0 || i >= ids.length - 1) return
-                            ;[ids[i + 1], ids[i]] = [ids[i], ids[i + 1]]
-                            void act(() => reorderMatterSteps(d().id, ids), '已调整顺序')
-                          }}
-                        >下移</button>
-                        <button
-                          class={page.btnGhost}
-                          onClick={() => setConfirmAction({
-                            title: '删除步骤',
-                            message: '确认删除此步？依据绑定会一并删除。',
-                            danger: true,
-                            fn: () => { void act(() => deleteMatterStep(step.id), '已删除步骤') },
-                          })}
-                        >删除</button>
+                        <div class={`${page.row} ${page.stepActions}`}>
+                          <Show when={step.status === 'pending'}>
+                            <button class={page.btn} onClick={() => void act(() => completeMatterStep(step.id), '已完成此步')}>完成</button>
+                            <button class={page.btn} onClick={() => void act(() => skipMatterStep(step.id), '已跳过')}>跳过</button>
+                          </Show>
+                          <Show when={step.status !== 'pending'}>
+                            <button class={page.btn} onClick={() => void act(() => reopenMatterStep(step.id), '已重开')}>回头</button>
+                          </Show>
+                          <button class={page.btn} onClick={() => void bindPath(step.id, false)}>文件</button>
+                          <button class={page.btn} onClick={() => void bindPath(step.id, true)}>文件夹</button>
+                          <button
+                            class={page.btnGhost}
+                            disabled={d().steps.findIndex((s) => s.id === step.id) === 0}
+                            onClick={() => {
+                              const ids = d().steps.map((s) => s.id)
+                              const i = ids.indexOf(step.id)
+                              if (i <= 0) return
+                              ;[ids[i - 1], ids[i]] = [ids[i], ids[i - 1]]
+                              void act(() => reorderMatterSteps(d().id, ids), '已调整顺序')
+                            }}
+                          >上移</button>
+                          <button
+                            class={page.btnGhost}
+                            disabled={d().steps.findIndex((s) => s.id === step.id) === d().steps.length - 1}
+                            onClick={() => {
+                              const ids = d().steps.map((s) => s.id)
+                              const i = ids.indexOf(step.id)
+                              if (i < 0 || i >= ids.length - 1) return
+                              ;[ids[i + 1], ids[i]] = [ids[i], ids[i + 1]]
+                              void act(() => reorderMatterSteps(d().id, ids), '已调整顺序')
+                            }}
+                          >下移</button>
+                          <button
+                            class={page.btnGhost}
+                            onClick={() => setConfirmAction({
+                              title: '删除步骤',
+                              message: '确认删除此步？依据绑定会一并删除。',
+                              danger: true,
+                              fn: () => { void act(() => deleteMatterStep(step.id), '已删除步骤') },
+                            })}
+                          >删除</button>
+                        </div>
                       </div>
                     </div>
                   )

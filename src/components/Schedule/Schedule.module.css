@@ -1,6 +1,6 @@
-.container { padding: 28px 36px; height: 100%; overflow-y: auto; }
+.container { padding: 28px 36px; height: 100%; overflow-y: auto; min-width: 0; }
 .embedded { padding: 24px 0 0; height: auto; overflow: visible; }
-.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
 .dateRow { display: flex; align-items: center; gap: 8px; }
 .navBtn { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: none; border-radius: 50%; background: transparent; color: var(--text-sub); cursor: pointer; transition: all 150ms ease; }
 .navBtn:hover { background: var(--bg-hover); color: var(--text-main); }
@@ -74,7 +74,7 @@
 .unscheduledTitle { font-size: 14px; color: var(--text-main); flex: 1; }
 .unscheduledDur { font-size: 12px; color: var(--text-label); }
 
-@media (max-width: 700px) {
+@container (max-width: 700px) {
   .container { padding: 20px; }
-  .dateLabel { font-size: 18px; }
+  .dateLabel { font-size: 18px; min-width: 0; }
 }

@@ -36,6 +36,7 @@ import DailyReviewDialog from './components/DailyReview/DailyReviewDialog'
 import AgendaList from './components/AgendaList/AgendaList'
 import MatterDetail from './components/MatterDetail/MatterDetail'
 import SettingsOverlay from './components/SettingsOverlay/SettingsOverlay'
+import shell from './App.module.css'
 
 const Calendar = lazy(() => import('./components/Calendar/Calendar'))
 const StatsPanel = lazy(() => import('./components/StatsPanel/StatsPanel'))
@@ -114,9 +115,9 @@ const App: Component = () => {
   })
 
   return (
-    <div style={{ display: 'flex', 'flex-direction': 'column', height: '100%' }}>
+    <div class={shell.root}>
       <div
-        style={{ display: 'flex', 'flex-direction': 'column', height: '100%' }}
+        class={shell.chrome}
         inert={settingsOpen() || undefined}
       >
         <TopBar
@@ -125,7 +126,7 @@ const App: Component = () => {
           onCreateClick={() => openDialog()}
         />
 
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div class={shell.body}>
           <Sidebar
             activeView={activeView?.() ?? 'today'}
             categories={categories?.() ?? []}
@@ -139,7 +140,7 @@ const App: Component = () => {
             onSettingsClick={() => setSettingsOpen(true)}
           />
 
-          <main style={{ flex: 1, overflow: 'hidden' }}>
+          <main class={shell.main}>
             <Switch>
               <Match when={(activeView?.() ?? 'today') === 'calendar'}>
                 <Suspense fallback={<ViewLoading />}>
@@ -148,7 +149,7 @@ const App: Component = () => {
               </Match>
               <Match when={(activeView?.() ?? 'today') === 'progress'}>
                 <Suspense fallback={<ViewLoading />}>
-                  <div style={{ height: '100%', 'overflow-y': 'auto' }}>
+                  <div class={shell.progressScroll}>
                     <StatsPanel />
                     <CadencePage stacked />
                   </div>

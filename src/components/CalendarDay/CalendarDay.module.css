@@ -1,5 +1,7 @@
 .cell {
   height: 90px;
+  min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -11,6 +13,9 @@
   padding: 8px 4px 4px;
 }
 
+@container (max-width: 760px) {
+  .cell { height: 72px; }
+}
 .cell:hover { background: var(--bg-hover); }
 .dragOver { border: 2px dashed var(--accent) !important; background: var(--accent-light) !important; border-radius: 0; }
 .selected { background: var(--accent-subtle); }

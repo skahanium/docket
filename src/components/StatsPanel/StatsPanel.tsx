@@ -52,8 +52,8 @@ const StatsPanel: Component = () => {
     <div class={styles.container}>
       <h2 class={styles.title}>统计</h2>
 
-      <div style={{ display: 'flex', gap: '20px', 'flex-wrap': 'wrap' }}>
-        <div style={{ flex: '1', 'min-width': '0' }}>
+      <div class={styles.split}>
+        <div class={styles.primary}>
           <Show when={!loading()} fallback={
             <div class={styles.cards}>
               {[0,1,2,3].map(() => (
@@ -170,7 +170,7 @@ const StatsPanel: Component = () => {
           </Show>
         </div>
 
-        <div style={{ width: '230px', 'flex-shrink': '0' }}>
+        <div class={styles.miniCal}>
           <div style={{ display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', 'margin-bottom': '8px' }}>
             <button style={{ border: 'none', background: 'none', color: 'var(--text-sub)', cursor: 'pointer', 'font-size': '14px' }} onClick={() => miniMonth() === 1 ? (setMiniYear(y => y - 1), setMiniMonth(12)) : setMiniMonth(m => m - 1)}>‹</button>
             <span style={{ 'font-size': '13px', 'font-weight': '500', color: 'var(--text-main)' }}>{miniYear()}/{String(miniMonth()).padStart(2, '0')}</span>
