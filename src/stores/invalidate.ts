@@ -32,7 +32,7 @@ export type InvalidateTaskMutationOptions = {
   calendar?: boolean
   /** Refetch the open task detail panel (default: true when a task is selected). */
   detail?: boolean
-  /** Refetch statistics when on the stats view (default: true when on stats). */
+  /** Refetch statistics when on the progress view (default: true when on progress). */
   stats?: boolean
 }
 
@@ -47,7 +47,7 @@ export function invalidateAfterTaskMutation(
     tasks = true,
     calendar = true,
     detail = selectedTaskId() != null,
-    stats = activeView() === 'stats',
+    stats = activeView() === 'progress',
   } = options
 
   if (tasks) void refetchTasks()

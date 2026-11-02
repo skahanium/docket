@@ -47,7 +47,6 @@ const StatsPanel: Component = () => {
   const offset = days().length > 0 ? (new Date(days()[0].date + 'T00:00:00').getDay() + 6) % 7 : 0
 
   const goToToday = () => { clearFilters(); setActiveView('today') }
-  const goToOverdue = () => { clearFilters(); setActiveView('overdue') }
 
   return (
     <div class={styles.container}>
@@ -71,7 +70,7 @@ const StatsPanel: Component = () => {
                   <p class={styles.cardLabel}>今日任务</p>
                   <p class={styles.cardValue}>{stats()!.today_count}</p>
                 </div>
-                <div class={`${styles.card} ${styles.cardClickable}`} onClick={goToOverdue}>
+                <div class={`${styles.card} ${styles.cardClickable}`} onClick={goToToday}>
                   <p class={styles.cardLabel}>逾期任务</p>
                   <p class={`${styles.cardValue} ${stats()!.overdue_count > 0 ? styles.cardValueDanger : ''}`}>{stats()!.overdue_count}</p>
                 </div>

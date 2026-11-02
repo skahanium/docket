@@ -65,6 +65,7 @@ export {
   statsPanel,
   refetchStats,
   agenda,
+  overdueAgenda,
   refetchAgenda,
   matters,
   refetchMatters,
@@ -79,7 +80,13 @@ export {
 export { taskMutationEpoch, invalidateAfterTaskMutation, invalidateAfterMutation } from './invalidate'
 export type { InvalidateTaskMutationOptions } from './invalidate'
 
-export { reviewOpen, setReviewOpen, scheduleDailyReviewCheck } from './appChrome'
+export {
+  reviewOpen,
+  setReviewOpen,
+  settingsOpen,
+  setSettingsOpen,
+  scheduleDailyReviewCheck,
+} from './appChrome'
 
 export * from './apiActions'
 export { completeTaskFromList } from './listActions'

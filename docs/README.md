@@ -6,7 +6,8 @@
 
 ## `plans/` 目录（当前有效）
 
-- [`2026-10-29-matters-playbooks-cadences.md`](plans/2026-10-29-matters-playbooks-cadences.md) — 事项、流程模板、步骤依据、周期指标；今日一事一步；与任务分表
+- [`2026-11-02-app-shell.md`](plans/2026-11-02-app-shell.md) — **壳层现行**：五视图（今日含逾期、任务看归档、事项、日历含排程、进展=统计+指标）、设置浮层
+- [`2026-10-29-matters-playbooks-cadences.md`](plans/2026-10-29-matters-playbooks-cadences.md) — 事项、流程模板、步骤依据、周期指标；今日一事一步；与任务分表（指标在进展页、模板编辑在设置）
 - [`2026-05-19-desktop-presence-design.md`](plans/2026-05-19-desktop-presence-design.md) — 单例、托盘常驻、悬浮任务面板、通知、低负载与安全（S2 可选联网）
 
 ## `superpowers/` 目录
@@ -22,6 +23,6 @@
 | `plans/2026-05-11-docket.md` | 任务清单未勾选完成，仅作考古参考 |
 | `specs/2026-05-12-*.md` | UI 改版相关，与功能架构无强绑定 |
 
-早期「只有任务 + 子任务」的设想已被事项/模板模型取代，以 `plans/2026-10-29-matters-playbooks-cadences.md` 为准。
+早期「只有任务 + 子任务」的设想已被事项/模板模型取代，对象模型以 `plans/2026-10-29-matters-playbooks-cadences.md` 为准；主界面壳层以 `plans/2026-11-02-app-shell.md` 为准。`superpowers/` 仍只作考古。
 
 无需为这些文档维护向后兼容；新功能请在 README 与 `plans/` 现行设计中补充说明。

@@ -23,7 +23,11 @@ const PERIOD_LABEL: Record<string, string> = {
 
 const idsOf = (ids: (number | null)[]) => ids.filter((id): id is number => id != null)
 
-const CadencePage: Component = () => {
+interface Props {
+  stacked?: boolean
+}
+
+const CadencePage: Component<Props> = (props) => {
   const [title, setTitle] = createSignal('')
   const [period, setPeriod] = createSignal('month')
   const [target, setTarget] = createSignal('')
@@ -95,7 +99,7 @@ const CadencePage: Component = () => {
   }
 
   return (
-    <div class={styles.container}>
+    <div class={`${styles.container} ${props.stacked ? styles.stacked : ''}`}>
       <h2 class={styles.title}>周期指标</h2>
       <p class={styles.lead}>按办结事项自动计数，不出现在今日。不限模板时空白事项也计入。</p>
 

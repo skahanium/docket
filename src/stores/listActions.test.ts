@@ -5,6 +5,7 @@ import { installNavigation } from './navigation'
 import { installFiltersSort } from './filtersSort'
 import { installCalendarUi } from './calendarUi'
 import { installInvalidate } from './invalidate'
+import { installAppChrome } from './appChrome'
 import { installResources } from './resources'
 import { installToast } from './toast'
 import { completeTaskFromList } from './listActions'
@@ -16,6 +17,7 @@ function installStore(): void {
   installCalendarUi()
   installToast()
   installInvalidate()
+  installAppChrome()
   installResources()
 }
 

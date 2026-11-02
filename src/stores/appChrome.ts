@@ -2,11 +2,14 @@ import { createSignal } from 'solid-js'
 import { isWorkday } from '../bindings/commands'
 import { localDateString } from '../utils/date'
 
-export let reviewOpen: ReturnType<typeof createSignal<boolean>>[0]
+export let reviewOpen: ReturnType<typeof createSignal<boolean>>[0] = () => false
 export let setReviewOpen: ReturnType<typeof createSignal<boolean>>[1]
+export let settingsOpen: ReturnType<typeof createSignal<boolean>>[0] = () => false
+export let setSettingsOpen: ReturnType<typeof createSignal<boolean>>[1]
 
 export function installAppChrome(): void {
   ;[reviewOpen, setReviewOpen] = createSignal(false)
+  ;[settingsOpen, setSettingsOpen] = createSignal(false)
 }
 
 /** 启动后延迟检查是否弹出每日回顾（原 App onMount 逻辑） */

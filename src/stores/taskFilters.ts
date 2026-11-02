@@ -33,19 +33,11 @@ export function buildTaskListFilters(input: TaskListFilterInput): BuiltTaskListF
   } = input
 
   return {
-    status:
-      activeView === 'archive'
-        ? undefined
-        : activeView === 'all' || activeView === 'today' || activeView === 'overdue'
-          ? 'active'
-          : undefined,
+    status: 'active',
     category_id: activeCategoryId ?? undefined,
     tag_id: activeTagId ?? undefined,
     search_query: searchQuery || undefined,
-    today_view: activeView === 'today' ? true : undefined,
-    overdue_view: activeView === 'overdue' ? true : undefined,
-    due_date: selectedDate ?? undefined,
+    due_date: activeView === 'calendar' ? (selectedDate ?? undefined) : undefined,
     priority: activePriority ?? undefined,
-    is_archive: activeView === 'archive' ? true : undefined,
   }
 }

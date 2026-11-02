@@ -10,41 +10,51 @@ describe('buildTaskListFilters', () => {
     selectedDate: null,
   }
 
-  it('maps today view', () => {
-    const f = buildTaskListFilters({ ...base, activeView: 'today' })
+  it('maps tasks view to the active task library', () => {
+    const f = buildTaskListFilters({ ...base, activeView: 'tasks' })
     expect(f.status).toBe('active')
-    expect(f.today_view).toBe(true)
     expect(f.is_archive).toBeUndefined()
-  })
-
-  it('maps overdue view', () => {
-    const f = buildTaskListFilters({ ...base, activeView: 'overdue' })
-    expect(f.status).toBe('active')
-    expect(f.overdue_view).toBe(true)
     expect(f.today_view).toBeUndefined()
+    expect(f.overdue_view).toBeUndefined()
   })
 
-  it('maps archive view', () => {
-    const f = buildTaskListFilters({ ...base, activeView: 'archive' })
-    expect(f.status).toBeUndefined()
-    expect(f.is_archive).toBe(true)
+  it('does not treat today as a task-list today_view', () => {
+    const f = buildTaskListFilters({ ...base, activeView: 'today' })
     expect(f.today_view).toBeUndefined()
+    expect(f.overdue_view).toBeUndefined()
   })
 
-  it('passes category, tag, search, date, priority', () => {
+  it('passes due_date from selectedDate for the calendar day list', () => {
     const f = buildTaskListFilters({
       ...base,
-      activeView: 'all',
+      activeView: 'calendar',
+      selectedDate: '2026-11-02',
+    })
+    expect(f.due_date).toBe('2026-11-02')
+    expect(f.status).toBe('active')
+  })
+
+  it('does not leak a leftover selectedDate into the task library', () => {
+    const f = buildTaskListFilters({
+      ...base,
+      activeView: 'tasks',
+      selectedDate: '2026-11-02',
+    })
+    expect(f.due_date).toBeUndefined()
+  })
+
+  it('passes category, tag, search, and priority', () => {
+    const f = buildTaskListFilters({
+      ...base,
+      activeView: 'tasks',
       activeCategoryId: 3,
       activeTagId: 7,
       searchQuery: '  hello ',
       activePriority: 2,
-      selectedDate: '2026-06-01',
     })
     expect(f.category_id).toBe(3)
     expect(f.tag_id).toBe(7)
     expect(f.search_query).toBe('  hello ')
     expect(f.priority).toBe(2)
-    expect(f.due_date).toBe('2026-06-01')
   })
 })

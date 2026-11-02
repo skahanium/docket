@@ -10,7 +10,11 @@ import {
 } from '../../stores'
 import type { Playbook, PlaybookStepInput } from '../../bindings/types'
 
-const PlaybookPage: Component = () => {
+interface Props {
+  embedded?: boolean
+}
+
+const PlaybookPage: Component<Props> = (props) => {
   const [title, setTitle] = createSignal('')
   const [editing, setEditing] = createSignal<Playbook | null>(null)
   const [steps, setSteps] = createSignal<PlaybookStepInput[]>([])
@@ -79,11 +83,16 @@ const PlaybookPage: Component = () => {
   }
 
   return (
-    <div class={styles.container}>
-      <div class={styles.header}>
-        <h2 class={styles.title}>流程模板</h2>
-      </div>
-      <p class={styles.lead}>模板决定事项的步骤拷贝。已创建的事项不会随模板改动。</p>
+    <div class={`${styles.container} ${props.embedded ? styles.stacked : ''}`}>
+      <Show when={!props.embedded}>
+        <div class={styles.header}>
+          <h2 class={styles.title}>流程模板</h2>
+        </div>
+      </Show>
+      <Show when={props.embedded}>
+        <h2 class={styles.title}>模板</h2>
+      </Show>
+      <p class={styles.lead}>模板决定事项的步骤拷贝。已创建的事项不会随模板改动。新建对话框仍可选用模板。</p>
       <div class={styles.row}>
         <input class={styles.input} placeholder="新模板名称" value={title()} onInput={(e) => setTitle(e.currentTarget.value)} />
         <button class={`${styles.btn} ${styles.btnPrimary}`} disabled={!title().trim()} onClick={() => void create()}>新建模板</button>

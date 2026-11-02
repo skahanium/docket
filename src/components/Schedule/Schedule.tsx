@@ -24,9 +24,15 @@ function todayStr(): string {
   return localDateString()
 }
 
-const Schedule: Component = () => {
-  const [scheduleDate, setScheduleDate] = createSignal(todayStr())
+interface Props {
+  date?: string
+}
+
+const Schedule: Component<Props> = (props) => {
+  const [internalDate, setInternalDate] = createSignal(todayStr())
   const [refetchTrigger, setRefetchTrigger] = createSignal(0)
+  const controlled = () => props.date != null
+  const scheduleDate = () => props.date ?? internalDate()
 
   const [scheduleData] = createResource(
     () => ({ date: scheduleDate(), trigger: refetchTrigger() }),
@@ -38,14 +44,14 @@ const Schedule: Component = () => {
   const data = () => scheduleData()
 
   const prevDay = () => {
-    setScheduleDate(addDaysLocal(scheduleDate(), -1))
+    setInternalDate(addDaysLocal(scheduleDate(), -1))
   }
 
   const nextDay = () => {
-    setScheduleDate(addDaysLocal(scheduleDate(), 1))
+    setInternalDate(addDaysLocal(scheduleDate(), 1))
   }
 
-  const goToday = () => setScheduleDate(todayStr())
+  const goToday = () => setInternalDate(todayStr())
 
   const handleAutoSchedule = async () => {
     try {
@@ -77,7 +83,7 @@ const Schedule: Component = () => {
   }
 
   const handleClick = (taskId: number) => {
-    clearFilters()
+    if (!controlled()) clearFilters()
     deselectTask()
     selectTask(taskId)
   }
@@ -125,20 +131,30 @@ const Schedule: Component = () => {
   }
 
   return (
-    <div class={styles.container}>
+    <div class={`${styles.container} ${controlled() ? styles.embedded : ''}`}>
       {/* Header */}
       <div class={styles.header}>
-        <div class={styles.dateRow}>
-          <button class={styles.navBtn} onClick={prevDay}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 3L5 8l5 5" /></svg>
-          </button>
-          <span class={styles.dateLabel}>{dateLabel()}</span>
-          <span class={styles.weekday}>{weekdayLabel()}</span>
-          <button class={styles.navBtn} onClick={nextDay}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3l5 5-5 5" /></svg>
-          </button>
-          <button class={styles.todayBtn} onClick={goToday}>今天</button>
-        </div>
+        <Show
+          when={!controlled()}
+          fallback={
+            <div class={styles.dateRow}>
+              <span class={styles.blockLabel}>排程</span>
+              <span class={styles.weekday}>{dateLabel()} {weekdayLabel()}</span>
+            </div>
+          }
+        >
+          <div class={styles.dateRow}>
+            <button class={styles.navBtn} onClick={prevDay}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 3L5 8l5 5" /></svg>
+            </button>
+            <span class={styles.dateLabel}>{dateLabel()}</span>
+            <span class={styles.weekday}>{weekdayLabel()}</span>
+            <button class={styles.navBtn} onClick={nextDay}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3l5 5-5 5" /></svg>
+            </button>
+            <button class={styles.todayBtn} onClick={goToday}>今天</button>
+          </div>
+        </Show>
         <div class={styles.actions}>
           {scheduleData.loading && <div class={styles.spinner} />}
           <button class={styles.autoBtn} onClick={handleAutoSchedule} disabled={scheduleData.loading}>

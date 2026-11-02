@@ -1,4 +1,5 @@
 .container { padding: 32px 36px; height: 100%; overflow-y: auto; }
+.stacked { height: auto; overflow: visible; padding-top: 8px; }
 .title { font-size: 24px; font-weight: 700; color: var(--text-main); letter-spacing: -0.02em; }
 .lead { font-size: 14px; color: var(--text-sub); margin: 8px 0 20px; line-height: 1.6; }
 .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }

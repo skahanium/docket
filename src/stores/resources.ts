@@ -1,4 +1,4 @@
-import { createResource, createMemo, createEffect } from 'solid-js'
+import { createResource, createMemo } from 'solid-js'
 import * as api from '../bindings/commands'
 import { activeView, selectedMatterId, selectedTaskId } from './navigation'
 import {
@@ -10,6 +10,7 @@ import {
   sortDir,
 } from './filtersSort'
 import { selectedDate, calendarYear, calendarMonth } from './calendarUi'
+import { settingsOpen } from './appChrome'
 import { buildTaskListFilters } from './taskFilters'
 import type { AgendaItem, Cadence, MatterDetail, MatterSummary, Playbook } from '../bindings/types'
 
@@ -26,7 +27,8 @@ export let refetchCalendar: ReturnType<typeof createResource<api.CalendarDayData
 export let statsPanel: ReturnType<typeof createResource<api.StatsPanelData | null>>[0]
 export let refetchStats: ReturnType<typeof createResource<api.StatsPanelData | null>>[1]['refetch']
 export let agenda: ReturnType<typeof createResource<AgendaItem[]>>[0]
-export let refetchAgenda: ReturnType<typeof createResource<AgendaItem[]>>[1]['refetch']
+export let overdueAgenda: ReturnType<typeof createResource<AgendaItem[]>>[0]
+export let refetchAgenda: () => void = () => {}
 export let matters: ReturnType<typeof createResource<MatterSummary[]>>[0]
 export let refetchMatters: ReturnType<typeof createResource<MatterSummary[]>>[1]['refetch']
 export let playbooks: ReturnType<typeof createResource<Playbook[]>>[0]
@@ -49,10 +51,14 @@ export function installResources(): void {
   )
 
   ;[tasks, { refetch: refetchTasks }] = createResource(
-    () => ({ filters: taskFilters(), sort: { field: sortField(), direction: sortDir() } }),
-    ({ filters, sort }) => {
-      if (filters.is_archive) return api.listArchived()
-      return api.listTasks(
+    () => {
+      const view = activeView()
+      if (view !== 'tasks' && view !== 'calendar') return undefined
+      if (view === 'calendar' && !selectedDate()) return undefined
+      return { filters: taskFilters(), sort: { field: sortField(), direction: sortDir() } }
+    },
+    ({ filters, sort }) =>
+      api.listTasks(
         {
           status: filters.status ?? 'active',
           category_id: filters.category_id ?? null,
@@ -64,8 +70,7 @@ export function installResources(): void {
           priority: filters.priority ?? null,
         },
         sort,
-      )
-    },
+      ),
     { initialValue: [] },
   )
 
@@ -80,8 +85,7 @@ export function installResources(): void {
   )
   ;[calendarData, { refetch: refetchCalendar }] = createResource(
     () => {
-      const view = activeView()
-      if (view !== 'calendar' && view !== 'schedule') return undefined
+      if (activeView() !== 'calendar') return undefined
       return { year: calendarYear(), month: calendarMonth() }
     },
     (params) =>
@@ -89,26 +93,31 @@ export function installResources(): void {
     { initialValue: [] },
   )
   ;[statsPanel, { refetch: refetchStats }] = createResource(
-    () => activeView() === 'stats',
+    () => activeView() === 'progress',
     (active) => (active ? api.getStatsPanel(7) : null),
   )
 
-  createEffect(() => { if (activeView() === 'stats') refetchStats() })
+  let refetchAgendaToday: ReturnType<typeof createResource<AgendaItem[]>>[1]['refetch']
+  let refetchAgendaOverdue: ReturnType<typeof createResource<AgendaItem[]>>[1]['refetch']
 
-  ;[agenda, { refetch: refetchAgenda }] = createResource(
-    () => {
-      const view = activeView()
-      if (view !== 'today' && view !== 'overdue') return undefined
-      return view
-    },
+  ;[agenda, { refetch: refetchAgendaToday }] = createResource(
+    () => (activeView() === 'today' ? 'today' as const : undefined),
     (view) => api.listAgenda(view),
     { initialValue: [] },
   )
+  ;[overdueAgenda, { refetch: refetchAgendaOverdue }] = createResource(
+    () => (activeView() === 'today' ? 'overdue' as const : undefined),
+    (view) => api.listAgenda(view),
+    { initialValue: [] },
+  )
+  refetchAgenda = () => {
+    void refetchAgendaToday()
+    void refetchAgendaOverdue()
+  }
 
   ;[matters, { refetch: refetchMatters }] = createResource(
     () => {
-      const view = activeView()
-      if (view !== 'matters' && selectedMatterId() == null) return undefined
+      if (activeView() !== 'matters' && selectedMatterId() == null) return undefined
       return true
     },
     () => api.listMatters(),
@@ -118,7 +127,12 @@ export function installResources(): void {
   ;[playbooks, { refetch: refetchPlaybooks }] = createResource(
     () => {
       const view = activeView()
-      if (view !== 'playbooks' && view !== 'cadences' && view !== 'matters' && selectedMatterId() == null) {
+      if (
+        view !== 'progress'
+        && view !== 'matters'
+        && !settingsOpen()
+        && selectedMatterId() == null
+      ) {
         return undefined
       }
       return true
@@ -128,7 +142,18 @@ export function installResources(): void {
   )
 
   ;[cadences, { refetch: refetchCadences }] = createResource(
-    () => (activeView() === 'cadences' ? true : undefined),
+    () => {
+      const view = activeView()
+      if (
+        view !== 'progress'
+        && view !== 'matters'
+        && !settingsOpen()
+        && selectedMatterId() == null
+      ) {
+        return undefined
+      }
+      return true
+    },
     () => api.listCadences(),
     { initialValue: [] },
   )

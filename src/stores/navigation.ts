@@ -1,17 +1,11 @@
 import { createSignal } from 'solid-js'
 
 export type ViewKind =
-  | 'all'
   | 'today'
-  | 'overdue'
-  | 'schedule'
-  | 'calendar'
-  | 'stats'
-  | 'archive'
-  | 'settings'
+  | 'tasks'
   | 'matters'
-  | 'playbooks'
-  | 'cadences'
+  | 'calendar'
+  | 'progress'
 
 export let activeView: ReturnType<typeof createSignal<ViewKind>>[0]
 export let setActiveView: ReturnType<typeof createSignal<ViewKind>>[1]
@@ -28,7 +22,7 @@ export let selectMatter: (id: number) => void
 export let deselectMatter: () => void
 
 export function installNavigation(): void {
-  ;[activeView, setActiveView] = createSignal<ViewKind>('all')
+  ;[activeView, setActiveView] = createSignal<ViewKind>('today')
   ;[selectedTaskId, setSelectedTaskId] = createSignal<number | null>(null)
   ;[selectedMatterId, setSelectedMatterId] = createSignal<number | null>(null)
   selectTask = (id: number) => {

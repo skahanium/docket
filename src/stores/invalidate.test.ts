@@ -3,6 +3,7 @@ import { createRoot } from 'solid-js'
 import { installNavigation } from './navigation'
 import { installFiltersSort } from './filtersSort'
 import { installCalendarUi } from './calendarUi'
+import { installAppChrome } from './appChrome'
 import { installResources } from './resources'
 import { installInvalidate, invalidateAfterTaskMutation, taskMutationEpoch } from './invalidate'
 
@@ -11,6 +12,7 @@ function installStoreSlice(): void {
   installFiltersSort()
   installCalendarUi()
   installInvalidate()
+  installAppChrome()
   installResources()
 }
 

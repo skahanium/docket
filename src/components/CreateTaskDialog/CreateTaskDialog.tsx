@@ -143,7 +143,13 @@ const CreateTaskDialog: Component<Props> = (props) => {
         </Show>
 
         <input type="text" class={styles.input} value={title()} onInput={(e) => setTitle(e.currentTarget.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && title().trim()) submit(); if (e.key === 'Escape') props.onClose() }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && title().trim()) submit()
+            if (e.key === 'Escape') {
+              e.stopPropagation()
+              props.onClose()
+            }
+          }}
           placeholder={mode() === 'task' ? '任务标题' : '事项标题'} autofocus />
         <Show when={mode() === 'task'}>
           <textarea class={styles.textarea} value={description()} onInput={(e) => setDescription(e.currentTarget.value)} placeholder="描述（可选）" />

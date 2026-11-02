@@ -10,6 +10,7 @@ export const reopenTask = api.reopenTask
 export const deleteTask = api.deleteTask
 export const archiveTask = api.archiveTask
 export const restoreTask = api.restoreTask
+export const listArchived = api.listArchived
 export const addTagToTask = api.addTagToTask
 export const removeTagFromTask = api.removeTagFromTask
 

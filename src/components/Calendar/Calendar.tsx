@@ -1,4 +1,4 @@
-import { type Component, For, Show } from 'solid-js'
+import { type Component, For, Show, onCleanup } from 'solid-js'
 import styles from './Calendar.module.css'
 import {
   calendarYear,
@@ -14,8 +14,13 @@ import {
   pushToast,
   tasks,
   agenda,
+  completeTaskFromList,
+  selectTask,
+  refetchTasks,
 } from '../../stores'
 import CalendarDay from '../CalendarDay/CalendarDay'
+import TaskList from '../TaskList/TaskList'
+import Schedule from '../Schedule/Schedule'
 import { localDateString, replaceDueDay } from '../../utils/date'
 import type { DueDragPayload } from '../../utils/dueDrag'
 
@@ -26,6 +31,7 @@ interface Props {
 }
 
 const Calendar: Component<Props> = (props) => {
+  onCleanup(() => setSelectedDate(null))
   const prev = () => calendarMonth() === 1 ? (setCalendarYear(y => y - 1), setCalendarMonth(12)) : setCalendarMonth(m => m - 1)
   const next = () => calendarMonth() === 12 ? (setCalendarYear(y => y + 1), setCalendarMonth(1)) : setCalendarMonth(m => m + 1)
 
@@ -40,11 +46,11 @@ const Calendar: Component<Props> = (props) => {
         ?? (payload.kind === 'task'
           ? (tasks() ?? []).find((t) => t.id === payload.id)?.due_date ?? null
           : (agenda() ?? []).find((i) => i.kind === 'matter_step' && i.id === payload.id)?.due_date ?? null)
-      const next = replaceDueDay(existing, date)
+      const nextDue = replaceDueDay(existing, date)
       if (payload.kind === 'task') {
-        await updateTask(payload.id, { due_date: next })
+        await updateTask(payload.id, { due_date: nextDue })
       } else {
-        await updateMatterStep(payload.id, { due_date: next })
+        await updateMatterStep(payload.id, { due_date: nextDue })
       }
       pushToast('success', '日期已更新')
       invalidateAfterTaskMutation()
@@ -97,6 +103,24 @@ const Calendar: Component<Props> = (props) => {
             )}
           </For>
         </div>
+      </Show>
+
+      <Show when={selectedDate()}>
+        {(date) => (
+          <div class={styles.dayPanel}>
+            <TaskList
+              title="当天任务"
+              compact
+              tasks={tasks ? (tasks() ?? []) : []}
+              loading={tasks?.loading ?? false}
+              error={tasks?.error ? String(tasks.error) : null}
+              onTaskToggle={(id) => void completeTaskFromList(id)}
+              onTaskClick={(id) => selectTask(id)}
+              onRetry={refetchTasks}
+            />
+            <Schedule date={date()} />
+          </div>
+        )}
       </Show>
     </div>
   )

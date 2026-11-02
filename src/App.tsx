@@ -11,12 +11,15 @@ import {
   clearFilters,
   reviewOpen,
   setReviewOpen,
+  settingsOpen,
+  setSettingsOpen,
   scheduleDailyReviewCheck,
   completeTaskFromList,
   refetchTasks,
   refetchAgenda,
   invalidateAfterTaskMutation,
   agenda,
+  overdueAgenda,
   activePriority,
   completeMatterStep,
   reopenMatterStep,
@@ -32,13 +35,11 @@ import TaskDetail from './components/TaskDetail/TaskDetail'
 import DailyReviewDialog from './components/DailyReview/DailyReviewDialog'
 import AgendaList from './components/AgendaList/AgendaList'
 import MatterDetail from './components/MatterDetail/MatterDetail'
+import SettingsOverlay from './components/SettingsOverlay/SettingsOverlay'
 
 const Calendar = lazy(() => import('./components/Calendar/Calendar'))
-const Schedule = lazy(() => import('./components/Schedule/Schedule'))
 const StatsPanel = lazy(() => import('./components/StatsPanel/StatsPanel'))
-const SettingsPanel = lazy(() => import('./components/SettingsPanel/SettingsPanel'))
 const MatterList = lazy(() => import('./components/MatterList/MatterList'))
-const PlaybookPage = lazy(() => import('./components/PlaybookPage/PlaybookPage'))
 const CadencePage = lazy(() => import('./components/CadencePage/CadencePage'))
 
 const ViewLoading: Component = () => (
@@ -57,13 +58,27 @@ const App: Component = () => {
   onMount(() => {
     const handleKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey
+      if (settingsOpen()) {
+        if (e.key === 'Escape') { e.preventDefault(); setSettingsOpen(false) }
+        if (mod && (e.key === 'n' || e.key === 'f')) e.preventDefault()
+        return
+      }
       if (mod && e.key === 'n') { e.preventDefault(); openDialog() }
       else if (mod && e.key === 'f') { e.preventDefault(); (document.querySelector<HTMLInputElement>('input[placeholder*="搜索"]'))?.focus() }
-      else if (e.key === 'Escape') { deselectTask(); deselectMatter(); setDialogOpen(false); setReviewOpen(false) }
+      else if (e.key === 'Escape') {
+        if (dialogOpen() || reviewOpen()) { setDialogOpen(false); setReviewOpen(false); return }
+        deselectTask()
+        deselectMatter()
+      }
     }
     document.addEventListener('keydown', handleKey)
-    const u1 = listen<string>('navigate', (e) => { if (e.payload === 'today') setActiveView('today') })
-    const u2 = listen('quick-add', () => openDialog())
+    const u1 = listen<string>('navigate', (e) => {
+      if (e.payload === 'today') {
+        clearFilters()
+        setActiveView('today')
+      }
+    })
+    const u2 = listen('quick-add', () => { if (!settingsOpen()) openDialog() })
     const u3 = listen<number>('open-task', (e) => {
       clearFilters()
       setActiveView('today')
@@ -91,138 +106,122 @@ const App: Component = () => {
     void completeTaskFromList(id)
   }
 
-  const viewTitle = () => {
-    switch (activeView?.() ?? 'all') {
-      case 'today': return '今日调度'
-      case 'overdue': return '逾期'
-      case 'schedule': return '日程'
-      case 'archive': return '归档'
-      default: return '全部任务'
-    }
-  }
+  const agendaFilter = () => ({
+    search: searchQuery() ?? '',
+    priority: activePriority(),
+    categoryId: activeCategoryId(),
+    tagId: activeTagId(),
+  })
 
   return (
     <div style={{ display: 'flex', 'flex-direction': 'column', height: '100%' }}>
-      <TopBar
-        searchValue={searchQuery?.() ?? ''}
-        onSearchInput={setSearchQuery}
-        onCreateClick={() => openDialog()}
-      />
-
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <Sidebar
-          activeView={activeView?.() ?? 'all'}
-          categories={categories?.() ?? []}
-          tags={tags?.() ?? []}
-          activeCategoryId={activeCategoryId()}
-          activeTagId={activeTagId()}
-          onViewChange={(v) => { setActiveView(v); deselectTask(); clearFilters() }}
-          onCategorySelect={(id) => setActiveCategoryId(id)}
-          onTagSelect={(id) => setActiveTagId(id)}
+      <div
+        style={{ display: 'flex', 'flex-direction': 'column', height: '100%' }}
+        inert={settingsOpen() || undefined}
+      >
+        <TopBar
+          searchValue={searchQuery?.() ?? ''}
+          onSearchInput={setSearchQuery}
+          onCreateClick={() => openDialog()}
+          onSettingsClick={() => setSettingsOpen(true)}
         />
 
-        <main style={{ flex: 1, overflow: 'hidden' }}>
-          <Switch>
-            <Match when={(activeView?.() ?? 'all') === 'schedule'}>
-              <Suspense fallback={<ViewLoading />}>
-                <Schedule />
-              </Suspense>
-            </Match>
-            <Match when={(activeView?.() ?? 'all') === 'calendar'}>
-              <Suspense fallback={<ViewLoading />}>
-                <Calendar onDoubleClickDate={(date) => openDialog(date)} />
-              </Suspense>
-            </Match>
-            <Match when={(activeView?.() ?? 'all') === 'stats'}>
-              <Suspense fallback={<ViewLoading />}>
-                <StatsPanel />
-              </Suspense>
-            </Match>
-            <Match when={(activeView?.() ?? 'all') === 'settings'}>
-              <Suspense fallback={<ViewLoading />}>
-                <SettingsPanel />
-              </Suspense>
-            </Match>
-            <Match when={(activeView?.() ?? 'all') === 'matters'}>
-              <Suspense fallback={<ViewLoading />}>
-                <MatterList />
-              </Suspense>
-            </Match>
-            <Match when={(activeView?.() ?? 'all') === 'playbooks'}>
-              <Suspense fallback={<ViewLoading />}>
-                <PlaybookPage />
-              </Suspense>
-            </Match>
-            <Match when={(activeView?.() ?? 'all') === 'cadences'}>
-              <Suspense fallback={<ViewLoading />}>
-                <CadencePage />
-              </Suspense>
-            </Match>
-            <Match when={(activeView?.() ?? 'all') === 'today' || (activeView?.() ?? 'all') === 'overdue'}>
-              <AgendaList
-                title={viewTitle()}
-                items={filterAgendaItems(agenda() ?? [], {
-                  search: searchQuery() ?? '',
-                  priority: activePriority(),
-                  categoryId: activeCategoryId(),
-                  tagId: activeTagId(),
-                })}
-                loading={agenda?.loading ?? false}
-                error={agenda?.error ? String(agenda.error) : null}
-                onToggle={(item) => {
-                  if (item.kind === 'task') void completeTaskFromList(item.id)
-                  else {
-                    void completeMatterStep(item.id)
-                      .then(() => {
-                        pushToast('success', '已完成当前步', {
-                          label: '撤销',
-                          onClick: () => {
-                            void reopenMatterStep(item.id)
-                              .then(() => invalidateAfterTaskMutation())
-                              .catch((e) => pushToast('error', String(e)))
-                          },
-                        })
-                        invalidateAfterTaskMutation()
-                      })
-                      .catch((e) => pushToast('error', String(e)))
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          <Sidebar
+            activeView={activeView?.() ?? 'today'}
+            categories={categories?.() ?? []}
+            tags={tags?.() ?? []}
+            activeCategoryId={activeCategoryId()}
+            activeTagId={activeTagId()}
+            onViewChange={(v) => { setActiveView(v); deselectTask(); deselectMatter(); clearFilters() }}
+            onCategorySelect={(id) => setActiveCategoryId(id)}
+            onTagSelect={(id) => setActiveTagId(id)}
+          />
+
+          <main style={{ flex: 1, overflow: 'hidden' }}>
+            <Switch>
+              <Match when={(activeView?.() ?? 'today') === 'calendar'}>
+                <Suspense fallback={<ViewLoading />}>
+                  <Calendar onDoubleClickDate={(date) => openDialog(date)} />
+                </Suspense>
+              </Match>
+              <Match when={(activeView?.() ?? 'today') === 'progress'}>
+                <Suspense fallback={<ViewLoading />}>
+                  <div style={{ height: '100%', 'overflow-y': 'auto' }}>
+                    <StatsPanel />
+                    <CadencePage stacked />
+                  </div>
+                </Suspense>
+              </Match>
+              <Match when={(activeView?.() ?? 'today') === 'matters'}>
+                <Suspense fallback={<ViewLoading />}>
+                  <MatterList />
+                </Suspense>
+              </Match>
+              <Match when={(activeView?.() ?? 'today') === 'today'}>
+                <AgendaList
+                  title="今日"
+                  overdueItems={filterAgendaItems(overdueAgenda() ?? [], agendaFilter())}
+                  items={filterAgendaItems(agenda() ?? [], agendaFilter())}
+                  loading={(agenda?.loading ?? false) || (overdueAgenda?.loading ?? false)}
+                  error={
+                    agenda?.error
+                      ? String(agenda.error)
+                      : overdueAgenda?.error
+                        ? String(overdueAgenda.error)
+                        : null
                   }
-                }}
-                onClick={(item) => {
-                  if (item.kind === 'task') selectTask(item.id)
-                  else if (item.matter_id != null) selectMatter(item.matter_id)
-                }}
-                onRetry={refetchAgenda}
-              />
-            </Match>
-            <Match when={true}>
-              <TaskList
-                title={viewTitle()}
-                tasks={tasks ? (tasks() ?? []) : []}
-                loading={tasks?.loading ?? false}
-                error={tasks?.error ? String(tasks.error) : null}
-                categories={categories?.() ?? []}
-                tags={tags?.() ?? []}
-                showFilters={(activeView?.() ?? 'all') !== 'archive'}
-                isArchive={(activeView?.() ?? 'all') === 'archive'}
-                onCategoryChange={(id) => setActiveCategoryId(id)}
-                onTagChange={(id) => setActiveTagId(id)}
-                onClearFilters={clearFilters}
-                onTaskToggle={handleToggle}
-                onTaskClick={(id) => selectTask(id)}
-                onRetry={refetchTasks}
-              />
-            </Match>
-          </Switch>
-        </main>
+                  onToggle={(item) => {
+                    if (item.kind === 'task') void completeTaskFromList(item.id)
+                    else {
+                      void completeMatterStep(item.id)
+                        .then(() => {
+                          pushToast('success', '已完成当前步', {
+                            label: '撤销',
+                            onClick: () => {
+                              void reopenMatterStep(item.id)
+                                .then(() => invalidateAfterTaskMutation())
+                                .catch((e) => pushToast('error', String(e)))
+                            },
+                          })
+                          invalidateAfterTaskMutation()
+                        })
+                        .catch((e) => pushToast('error', String(e)))
+                    }
+                  }}
+                  onClick={(item) => {
+                    if (item.kind === 'task') selectTask(item.id)
+                    else if (item.matter_id != null) selectMatter(item.matter_id)
+                  }}
+                  onRetry={refetchAgenda}
+                />
+              </Match>
+              <Match when={true}>
+                <TaskList
+                  title="任务"
+                  tasks={tasks ? (tasks() ?? []) : []}
+                  loading={tasks?.loading ?? false}
+                  error={tasks?.error ? String(tasks.error) : null}
+                  onTaskToggle={handleToggle}
+                  onTaskClick={(id) => selectTask(id)}
+                  onRetry={refetchTasks}
+                />
+              </Match>
+            </Switch>
+          </main>
+        </div>
+
+        <TaskDetail />
+        <MatterDetail />
+        <Show when={dialogOpen()}>
+          <CreateTaskDialog open={true} defaultDueDate={dialogDueDate()} onClose={() => setDialogOpen(false)} />
+        </Show>
+        <DailyReviewDialog open={reviewOpen()} onClose={() => setReviewOpen(false)} />
       </div>
 
-      <TaskDetail />
-      <MatterDetail />
-      <Show when={dialogOpen()}>
-        <CreateTaskDialog open={true} defaultDueDate={dialogDueDate()} onClose={() => setDialogOpen(false)} />
+      <Show when={settingsOpen()}>
+        <SettingsOverlay onClose={() => setSettingsOpen(false)} />
       </Show>
-
-      <DailyReviewDialog open={reviewOpen()} onClose={() => setReviewOpen(false)} />
 
       <div role="status" aria-live="polite" style={{ position: 'fixed', top: '16px', right: '16px', 'z-index': '999', display: 'flex', 'flex-direction': 'column', gap: '10px' }}>
         <For each={toasts?.() ?? []}>

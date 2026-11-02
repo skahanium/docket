@@ -5,13 +5,14 @@
 ## 特性
 
 - 完全离线运行，数据存储在本地 SQLite 数据库（WAL 模式）；界面使用系统字体，启动不访问 CDN
-- 任务管理：创建、编辑、完成、归档、撤销完成、重复规则；「今日 / 逾期」按本机日历日计算。琐碎工作用任务；有程序的工作用**事项**
-- **流程模板**与**事项**：从模板实例化或空白加步；今日一事一步（当前未完成步）；事项可归档/删除、可写说明；步骤可重排/删除，可关联本地文件/文件夹作依据（只记路径，不拷贝）
+- 任务管理：创建、编辑、完成、归档、撤销完成、重复规则；今日按本机日历日计算，列表分「逾期 / 今日」两段。琐碎工作用任务；有程序的工作用**事项**
+- **五视图**：今日、任务（可看归档）、事项、日历（点日见当天任务与排程）、进展（统计 + 周期指标）；启动默认今日
+- **流程模板**与**事项**：从模板实例化或空白加步；今日一事一步（当前未完成步）；事项可归档/删除、可写说明；步骤可重排/删除，可关联本地文件/文件夹作依据（只记路径，不拷贝）。模板在设置中编辑，新建仍可选模板
 - **到期日**：任务与步骤的 `due_date` 为本地日历日，可选 `HH:MM`；按日前缀归日，不引入第三种对象
-- **周期指标**：月/季/年单独一面，按办结事项自动计数（不进今日）
+- **周期指标**：月/季/年在进展页，按办结事项自动计数（不进今日）
 - 子任务：可追踪进度，列表一次查询批量加载
-- 日历视图：月历网格计入任务与当前步到期；从任务卡或议程拖到日格改期（保留已有时刻）
-- 日程排程：按工作日/节假日自动排程、上午/下午时间块
+- 日历视图：月历网格计入任务与当前步到期；点日下方为当天任务列表与自动排程；从任务卡或议程拖到日格改期（保留已有时刻）
+- 日程排程：挂在日历选中日下，按工作日/节假日自动排程、上午/下午时间块（仍只排任务）
 - 专注计时：独立置顶小窗
 - 分类与标签：筛选与组织
 - 提醒通知：后台轮询 + 系统通知（含每日摘要、逾期提醒、pending 步骤到期，可设置关闭逾期/摘要）
@@ -20,8 +21,8 @@
 - **托盘常驻**：关闭主窗口隐藏到托盘，托盘可显示/隐藏桌面任务面板；菜单栏为钢笔 D 模板图标
 - **应用标记**：深底钢笔笔锋 D（Dock / 启动画面同一套字）
 - **桌面任务面板**：悬浮只读清单（今日 + 逾期），点击打开主窗口
-- 设置：工作时间、节假日（可选联网同步）、通知、数据库路径（本地文件备份）
-- 系统托盘、深色/浅色主题
+- 设置：顶栏齿轮打开浮层（常规、外观含主题、通知、桌面面板、分类、标签、模板、节假日、数据）
+- 系统托盘、深色/浅色主题（主题在设置 → 外观）
 
 ## 技术栈
 
@@ -93,7 +94,7 @@ src/
 │   ├── types.ts        # 重新导出 generated.ts
 │   ├── generated.ts    # Specta 生成，勿手改
 │   ├── tasks.ts / calendar.ts / stats.ts / settings.ts …
-└── components/         # TaskList、Calendar、Schedule、StatsPanel、SettingsPanel …
+└── components/         # TaskList、Calendar、Schedule、StatsPanel、SettingsOverlay …
 
 public/app-icon.svg · favicon.svg · wordmark.svg · tray-mark.svg
 scripts/brand/export-icons.mjs   # npm run brand:icons → Dock / 托盘 PNG
@@ -129,13 +130,13 @@ src-tauri/icons/                 # ICNS/ICO；tray/ 为菜单栏模板
 | 依据 | `add_step_link`, `remove_step_link`, `replace_step_link`, `open_step_link`, `reveal_step_link`, `pick_evidence_path` | 只存绝对路径；dialog 选路径，opener 打开 |
 | 指标 | `list_cadences`, `create_cadence`, `update_cadence`, `get_cadence_progress` | 查询办结事项，不是累加器；不进今日 |
 | 统计 | `get_stats_panel` | 一次返回统计卡片、周预估/实际、专注热力图 |
-| 设置 | `get_settings`, `get_notification_settings`, `get_database_path`, … | 设置页；节假日同步需用户确认（S2） |
+| 设置 | `get_settings`, `get_notification_settings`, `get_database_path`, … | 齿轮浮层；节假日同步需用户确认（S2） |
 | 桌面面板 | `get_desktop_panel_snapshot`, `focus_task_from_panel`, `focus_matter_from_panel` | 托盘切换显示；只读调度清单 |
 | 备份 | （无 JSON 命令） | 设置页展示/打开 `docket.db` 路径，直接复制文件即可；**不含**事项依据指向的卷宗文件 |
 
 `bindings/types.ts` 重新导出 `generated.ts`（`npm run generate:bindings` / `npm run check:bindings`）。**不提供** JSON 导入导出。长任务列表 ≥40 条时窗口化虚拟滚动。任务变更后调用 `invalidateAfterTaskMutation()` 刷新多视图。
 
-> 现行设计见 [`docs/plans/2026-10-29-matters-playbooks-cadences.md`](docs/plans/2026-10-29-matters-playbooks-cadences.md)。`docs/superpowers/` 为早期规划稿（任务-only 设想已被事项模型取代）；**以本 README、`docs/README.md` 与代码为准**。
+> 对象模型见 [`docs/plans/2026-10-29-matters-playbooks-cadences.md`](docs/plans/2026-10-29-matters-playbooks-cadences.md)；壳层见 [`docs/plans/2026-11-02-app-shell.md`](docs/plans/2026-11-02-app-shell.md)。`docs/superpowers/` 为早期规划稿（任务-only 设想已被事项模型取代）；**以本 README、`docs/README.md` 与代码为准**。
 
 ### 错误处理（Rust）
 

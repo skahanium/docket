@@ -1,5 +1,5 @@
-.container { padding: 32px 36px; height: 100%; overflow-y: auto; max-width: 640px; }
-.title { font-size: 24px; font-weight: 700; color: var(--text-main); margin-bottom: 24px; letter-spacing: -0.02em; }
+.page { padding: 32px 36px; max-width: 640px; }
+.themeRow { display: flex; gap: 8px; flex-wrap: wrap; }
 .section { margin-bottom: 28px; }
 .sectionTitle { font-size: 13px; font-weight: 600; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
