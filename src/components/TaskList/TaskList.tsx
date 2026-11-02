@@ -10,7 +10,6 @@ import {
   listArchived,
   taskMutationEpoch,
 } from '../../stores'
-
 interface Props {
   title: string
   tasks: TaskSummary[]
@@ -209,8 +208,12 @@ const TaskList: Component<Props> = (props) => {
               <path d="M8 3.5V8l2.5 2M8 14A6 6 0 108 2a6 6 0 000 12z" />
             </svg>
           </div>
-          <p class={styles.emptyTitle}>{isArchive() ? '没有已归档任务' : '暂无任务'}</p>
-          <p class={styles.emptyHint}>{isArchive() ? '归档的任务会出现在这里' : '点击顶部 + 新建 开始规划'}</p>
+          <p class={styles.emptyTitle}>
+            {isArchive() ? '没有已归档任务' : '暂无任务'}
+          </p>
+          <p class={styles.emptyHint}>
+            {isArchive() ? '归档的任务会出现在这里' : '点击顶部 + 新建 开始规划'}
+          </p>
         </div>
       </Show>
 

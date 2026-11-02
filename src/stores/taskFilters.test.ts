@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildTaskListFilters } from './taskFilters'
+import { buildFacetTaskFilters, buildTaskListFilters } from './taskFilters'
 
 describe('buildTaskListFilters', () => {
   const base = {
-    activeCategoryId: null,
-    activeTagId: null,
     searchQuery: '',
     activePriority: null,
     selectedDate: null,
@@ -43,18 +41,32 @@ describe('buildTaskListFilters', () => {
     expect(f.due_date).toBeUndefined()
   })
 
-  it('passes category, tag, search, and priority', () => {
+  it('does not leak category or tag into the task library', () => {
     const f = buildTaskListFilters({
       ...base,
       activeView: 'tasks',
-      activeCategoryId: 3,
-      activeTagId: 7,
       searchQuery: '  hello ',
       activePriority: 2,
     })
-    expect(f.category_id).toBe(3)
-    expect(f.tag_id).toBe(7)
+    expect(f.category_id).toBeUndefined()
+    expect(f.tag_id).toBeUndefined()
     expect(f.search_query).toBe('  hello ')
     expect(f.priority).toBe(2)
+  })
+})
+
+describe('buildFacetTaskFilters', () => {
+  it('maps a category facet without due_date', () => {
+    expect(buildFacetTaskFilters({ type: 'category', id: 3 })).toEqual({
+      status: 'active',
+      category_id: 3,
+    })
+  })
+
+  it('maps a tag facet without category_id or due_date', () => {
+    expect(buildFacetTaskFilters({ type: 'tag', id: 7 })).toEqual({
+      status: 'active',
+      tag_id: 7,
+    })
   })
 })

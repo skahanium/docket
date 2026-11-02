@@ -8,10 +8,12 @@ export function bootstrapStores(): void {
 export type { ThemeMode, ResolvedTheme } from './theme'
 export { themeMode, setThemeMode, resolvedTheme } from './theme'
 
-export type { ViewKind } from './navigation'
+export type { ViewKind, Facet } from './navigation'
 export {
   activeView,
   setActiveView,
+  openFacet,
+  setOpenFacet,
   selectedTaskId,
   setSelectedTaskId,
   selectedMatterId,
@@ -20,16 +22,18 @@ export {
   deselectTask,
   selectMatter,
   deselectMatter,
+  goToView,
+  goToFacet,
+  isTrackActive,
+  isFacetActive,
+  facetMissing,
+  sameFacet,
 } from './navigation'
 
 export type { SortField, SortDir } from './filtersSort'
 export {
   searchQuery,
   setSearchQuery,
-  activeCategoryId,
-  setActiveCategoryId,
-  activeTagId,
-  setActiveTagId,
   activePriority,
   setActivePriority,
   sortField,

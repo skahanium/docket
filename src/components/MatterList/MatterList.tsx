@@ -1,6 +1,11 @@
 import { type Component, For, Show, createSignal, createResource } from 'solid-js'
 import styles from '../DomainPage/DomainPage.module.css'
-import { playbooks, selectMatter, listMatters, taskMutationEpoch } from '../../stores'
+import {
+  playbooks,
+  selectMatter,
+  listMatters,
+  taskMutationEpoch,
+} from '../../stores'
 import { formatDue } from '../../utils/date'
 
 const STATUS: Record<string, string> = {

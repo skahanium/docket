@@ -3,7 +3,7 @@ import styles from './StatsPanel.module.css'
 import {
   statsPanel,
   taskMutationEpoch,
-  setActiveView,
+  goToView,
   clearFilters,
   getCalendarMonth,
 } from '../../stores'
@@ -46,7 +46,7 @@ const StatsPanel: Component = () => {
   const days = () => miniCalData() ?? []
   const offset = days().length > 0 ? (new Date(days()[0].date + 'T00:00:00').getDay() + 6) % 7 : 0
 
-  const goToToday = () => { clearFilters(); setActiveView('today') }
+  const goToToday = () => { clearFilters(); goToView('today') }
 
   return (
     <div class={styles.container}>

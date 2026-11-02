@@ -1,9 +1,7 @@
-import type { ViewKind } from './navigation'
+import type { Facet, ViewKind } from './navigation'
 
 export interface TaskListFilterInput {
   activeView: ViewKind
-  activeCategoryId: number | null
-  activeTagId: number | null
   searchQuery: string
   activePriority: number | null
   selectedDate: string | null
@@ -23,21 +21,20 @@ export interface BuiltTaskListFilters {
 
 /** Pure mapping from UI navigation/filter state to `list_tasks` IPC filters. */
 export function buildTaskListFilters(input: TaskListFilterInput): BuiltTaskListFilters {
-  const {
-    activeView,
-    activeCategoryId,
-    activeTagId,
-    searchQuery,
-    activePriority,
-    selectedDate,
-  } = input
+  const { activeView, searchQuery, activePriority, selectedDate } = input
 
   return {
     status: 'active',
-    category_id: activeCategoryId ?? undefined,
-    tag_id: activeTagId ?? undefined,
     search_query: searchQuery || undefined,
     due_date: activeView === 'calendar' ? (selectedDate ?? undefined) : undefined,
     priority: activePriority ?? undefined,
   }
+}
+
+/** Facet page task query: category or tag only, never due_date. */
+export function buildFacetTaskFilters(facet: Facet): BuiltTaskListFilters {
+  if (facet.type === 'category') {
+    return { status: 'active', category_id: facet.id }
+  }
+  return { status: 'active', tag_id: facet.id }
 }

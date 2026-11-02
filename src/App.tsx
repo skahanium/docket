@@ -1,10 +1,12 @@
-import { type Component, Switch, Match, Show, createSignal, onMount, onCleanup, For, lazy, Suspense } from 'solid-js'
+import { type Component, Switch, Match, Show, createSignal, createEffect, onMount, onCleanup, For, lazy, Suspense } from 'solid-js'
 import { listen } from '@tauri-apps/api/event'
 import {
-  activeView, setActiveView,
+  activeView,
   categories, tags, tasks,
-  activeCategoryId, setActiveCategoryId,
-  activeTagId, setActiveTagId,
+  openFacet,
+  goToView,
+  goToFacet,
+  facetMissing,
   searchQuery, setSearchQuery,
   selectTask, deselectTask, selectMatter, deselectMatter,
   toasts,
@@ -34,6 +36,7 @@ import CreateTaskDialog from './components/CreateTaskDialog/CreateTaskDialog'
 import TaskDetail from './components/TaskDetail/TaskDetail'
 import DailyReviewDialog from './components/DailyReview/DailyReviewDialog'
 import AgendaList from './components/AgendaList/AgendaList'
+import FacetPage from './components/FacetPage/FacetPage'
 import MatterDetail from './components/MatterDetail/MatterDetail'
 import SettingsOverlay from './components/SettingsOverlay/SettingsOverlay'
 import shell from './App.module.css'
@@ -76,18 +79,18 @@ const App: Component = () => {
     const u1 = listen<string>('navigate', (e) => {
       if (e.payload === 'today') {
         clearFilters()
-        setActiveView('today')
+        goToView('today')
       }
     })
     const u2 = listen('quick-add', () => { if (!settingsOpen()) openDialog() })
     const u3 = listen<number>('open-task', (e) => {
       clearFilters()
-      setActiveView('today')
+      goToView('today')
       selectTask(e.payload)
     })
     const u4 = listen<number>('open-matter', (e) => {
       clearFilters()
-      setActiveView('today')
+      goToView('today')
       selectMatter(e.payload)
     })
     const u5 = listen('tasks-changed', () => invalidateAfterTaskMutation())
@@ -103,6 +106,21 @@ const App: Component = () => {
     scheduleDailyReviewCheck()
   })
 
+  createEffect(() => {
+    const f = openFacet()
+    if (!f) return
+    if (f.type === 'category') {
+      if (categories.state !== 'ready') return
+      if (!facetMissing(f, categories.latest ?? [], [])) return
+    } else {
+      if (tags.state !== 'ready') return
+      if (!facetMissing(f, [], tags.latest ?? [])) return
+    }
+    deselectTask()
+    deselectMatter()
+    goToView('today')
+  })
+
   const handleToggle = (id: number) => {
     void completeTaskFromList(id)
   }
@@ -110,8 +128,8 @@ const App: Component = () => {
   const agendaFilter = () => ({
     search: searchQuery() ?? '',
     priority: activePriority(),
-    categoryId: activeCategoryId(),
-    tagId: activeTagId(),
+    categoryId: null,
+    tagId: null,
   })
 
   return (
@@ -129,19 +147,27 @@ const App: Component = () => {
         <div class={shell.body}>
           <Sidebar
             activeView={activeView?.() ?? 'today'}
+            openFacet={openFacet() ?? null}
             categories={categories?.() ?? []}
             tags={tags?.() ?? []}
-            activeCategoryId={activeCategoryId()}
-            activeTagId={activeTagId()}
             settingsOpen={settingsOpen()}
-            onViewChange={(v) => { setActiveView(v); deselectTask(); deselectMatter(); clearFilters() }}
-            onCategorySelect={(id) => setActiveCategoryId(id)}
-            onTagSelect={(id) => setActiveTagId(id)}
+            onViewChange={(v) => { goToView(v); deselectTask(); deselectMatter() }}
+            onFacetSelect={(f) => {
+              const cur = openFacet()
+              goToFacet(f)
+              if (!cur || cur.type !== f.type || cur.id !== f.id) {
+                deselectTask()
+                deselectMatter()
+              }
+            }}
             onSettingsClick={() => setSettingsOpen(true)}
           />
 
           <main class={shell.main}>
             <Switch>
+              <Match when={openFacet() != null}>
+                <FacetPage />
+              </Match>
               <Match when={(activeView?.() ?? 'today') === 'calendar'}>
                 <Suspense fallback={<ViewLoading />}>
                   <Calendar onDoubleClickDate={(date) => openDialog(date)} />
@@ -163,8 +189,8 @@ const App: Component = () => {
               <Match when={(activeView?.() ?? 'today') === 'today'}>
                 <AgendaList
                   title="今日"
-                  overdueItems={filterAgendaItems(overdueAgenda() ?? [], agendaFilter())}
-                  items={filterAgendaItems(agenda() ?? [], agendaFilter())}
+                  overdueItems={filterAgendaItems(overdueAgenda.latest ?? [], agendaFilter())}
+                  items={filterAgendaItems(agenda.latest ?? [], agendaFilter())}
                   loading={(agenda?.loading ?? false) || (overdueAgenda?.loading ?? false)}
                   error={
                     agenda?.error
@@ -201,7 +227,7 @@ const App: Component = () => {
               <Match when={true}>
                 <TaskList
                   title="任务"
-                  tasks={tasks ? (tasks() ?? []) : []}
+                  tasks={tasks.latest ?? []}
                   loading={tasks?.loading ?? false}
                   error={tasks?.error ? String(tasks.error) : null}
                   onTaskToggle={handleToggle}

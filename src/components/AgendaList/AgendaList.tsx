@@ -18,7 +18,7 @@ interface Props {
   onRetry: () => void
 }
 
-const AgendaRow: Component<{
+export const AgendaRow: Component<{
   item: AgendaItem
   onToggle: (item: AgendaItem) => void
   onClick: (item: AgendaItem) => void

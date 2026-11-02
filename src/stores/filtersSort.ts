@@ -1,12 +1,9 @@
 import { createSignal } from 'solid-js'
 import { setSelectedDate } from './calendarUi'
+import { setOpenFacet } from './navigation'
 
 export let searchQuery: ReturnType<typeof createSignal<string>>[0]
 export let setSearchQuery: ReturnType<typeof createSignal<string>>[1]
-export let activeCategoryId: ReturnType<typeof createSignal<number | null>>[0]
-export let setActiveCategoryId: ReturnType<typeof createSignal<number | null>>[1]
-export let activeTagId: ReturnType<typeof createSignal<number | null>>[0]
-export let setActiveTagId: ReturnType<typeof createSignal<number | null>>[1]
 export let activePriority: ReturnType<typeof createSignal<number | null>>[0]
 export let setActivePriority: ReturnType<typeof createSignal<number | null>>[1]
 
@@ -23,15 +20,12 @@ export function installFiltersSort(): void {
   ;[sortField, setSortField] = createSignal<SortField>('due_date')
   ;[sortDir, setSortDir] = createSignal<SortDir>('asc')
   ;[searchQuery, setSearchQuery] = createSignal('')
-  ;[activeCategoryId, setActiveCategoryId] = createSignal<number | null>(null)
-  ;[activeTagId, setActiveTagId] = createSignal<number | null>(null)
   ;[activePriority, setActivePriority] = createSignal<number | null>(null)
 
   clearFilters = () => {
     setSearchQuery('')
-    setActiveCategoryId(null)
-    setActiveTagId(null)
     setActivePriority(null)
     setSelectedDate(null)
+    setOpenFacet(null)
   }
 }

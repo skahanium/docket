@@ -1,6 +1,7 @@
 import { type Component, For, createEffect, createSignal, onCleanup, onMount } from 'solid-js'
 import styles from './Sidebar.module.css'
-import type { ViewKind } from '../../stores'
+import type { ViewKind, Facet } from '../../stores'
+import { isFacetActive, isTrackActive } from '../../stores'
 import type { Category, Tag } from '../../bindings/types'
 import {
   SIDEBAR_WIDTH_DEFAULT,
@@ -15,14 +16,12 @@ import {
 
 interface Props {
   activeView: ViewKind
+  openFacet: Facet | null
   categories: Category[]
   tags: Tag[]
-  activeCategoryId: number | null
-  activeTagId: number | null
   settingsOpen?: boolean
   onViewChange: (v: ViewKind) => void
-  onCategorySelect: (id: number | null) => void
-  onTagSelect: (id: number | null) => void
+  onFacetSelect: (facet: Facet) => void
   onSettingsClick: () => void
 }
 
@@ -127,7 +126,7 @@ const Sidebar: Component<Props> = (props) => {
             <For each={VIEWS}>
               {(v) => (
                 <button
-                  class={`${styles.item} ${props.activeView === v.key ? styles.itemActive : ''}`}
+                  class={`${styles.item} ${isTrackActive(props.openFacet, props.activeView, v.key) ? styles.itemActive : ''}`}
                   onClick={() => props.onViewChange(v.key)}
                 >
                   {v.label}
@@ -145,8 +144,9 @@ const Sidebar: Component<Props> = (props) => {
             <For each={props.categories}>
               {(c) => (
                 <button
-                  class={`${styles.item} ${props.activeCategoryId === c.id ? styles.itemActive : ''}`}
-                  onClick={() => props.onCategorySelect(props.activeCategoryId === c.id ? null : c.id)}
+                  class={`${styles.item} ${isFacetActive(props.openFacet, 'category', c.id) ? styles.itemActive : ''}`}
+                  title={c.name}
+                  onClick={() => props.onFacetSelect({ type: 'category', id: c.id })}
                 >
                   <span class={styles.dot} style={{ background: c.color ?? 'var(--accent)' }} />
                   <span class={styles.itemLabel}>{c.name}</span>
@@ -164,8 +164,9 @@ const Sidebar: Component<Props> = (props) => {
             <For each={props.tags}>
               {(t) => (
                 <button
-                  class={`${styles.item} ${props.activeTagId === t.id ? styles.itemActive : ''}`}
-                  onClick={() => props.onTagSelect(props.activeTagId === t.id ? null : t.id)}
+                  class={`${styles.item} ${isFacetActive(props.openFacet, 'tag', t.id) ? styles.itemActive : ''}`}
+                  title={t.name}
+                  onClick={() => props.onFacetSelect({ type: 'tag', id: t.id })}
                 >
                   <span class={styles.dot} style={{ background: t.color ?? 'var(--text-label)' }} />
                   <span class={styles.itemLabel}>{t.name}</span>

@@ -1,9 +1,7 @@
 import { createResource, createMemo } from 'solid-js'
 import * as api from '../bindings/commands'
-import { activeView, selectedMatterId, selectedTaskId } from './navigation'
+import { activeView, openFacet, selectedMatterId, selectedTaskId } from './navigation'
 import {
-  activeCategoryId,
-  activeTagId,
   searchQuery,
   activePriority,
   sortField,
@@ -11,7 +9,7 @@ import {
 } from './filtersSort'
 import { selectedDate, calendarYear, calendarMonth } from './calendarUi'
 import { settingsOpen } from './appChrome'
-import { buildTaskListFilters } from './taskFilters'
+import { buildFacetTaskFilters, buildTaskListFilters } from './taskFilters'
 import type { AgendaItem, Cadence, MatterDetail, MatterSummary, Playbook } from '../bindings/types'
 
 export let tasks: ReturnType<typeof createResource<api.TaskSummary[]>>[0]
@@ -42,8 +40,6 @@ export function installResources(): void {
   const taskFilters = createMemo(() =>
     buildTaskListFilters({
       activeView: activeView(),
-      activeCategoryId: activeCategoryId(),
-      activeTagId: activeTagId(),
       searchQuery: searchQuery() ?? '',
       activePriority: activePriority(),
       selectedDate: selectedDate(),
@@ -52,6 +48,13 @@ export function installResources(): void {
 
   ;[tasks, { refetch: refetchTasks }] = createResource(
     () => {
+      const facet = openFacet()
+      if (facet) {
+        return {
+          filters: buildFacetTaskFilters(facet),
+          sort: { field: 'due_date' as const, direction: 'asc' as const },
+        }
+      }
       const view = activeView()
       if (view !== 'tasks' && view !== 'calendar') return undefined
       if (view === 'calendar' && !selectedDate()) return undefined
@@ -85,7 +88,7 @@ export function installResources(): void {
   )
   ;[calendarData, { refetch: refetchCalendar }] = createResource(
     () => {
-      if (activeView() !== 'calendar') return undefined
+      if (openFacet() != null || activeView() !== 'calendar') return undefined
       return { year: calendarYear(), month: calendarMonth() }
     },
     (params) =>
@@ -93,20 +96,22 @@ export function installResources(): void {
     { initialValue: [] },
   )
   ;[statsPanel, { refetch: refetchStats }] = createResource(
-    () => activeView() === 'progress',
+    () => openFacet() == null && activeView() === 'progress',
     (active) => (active ? api.getStatsPanel(7) : null),
   )
 
   let refetchAgendaToday: ReturnType<typeof createResource<AgendaItem[]>>[1]['refetch']
   let refetchAgendaOverdue: ReturnType<typeof createResource<AgendaItem[]>>[1]['refetch']
 
+  const wantAgenda = () => openFacet() != null || activeView() === 'today'
+
   ;[agenda, { refetch: refetchAgendaToday }] = createResource(
-    () => (activeView() === 'today' ? 'today' as const : undefined),
+    () => (wantAgenda() ? 'today' as const : undefined),
     (view) => api.listAgenda(view),
     { initialValue: [] },
   )
   ;[overdueAgenda, { refetch: refetchAgendaOverdue }] = createResource(
-    () => (activeView() === 'today' ? 'overdue' as const : undefined),
+    () => (wantAgenda() ? 'overdue' as const : undefined),
     (view) => api.listAgenda(view),
     { initialValue: [] },
   )
@@ -117,7 +122,7 @@ export function installResources(): void {
 
   ;[matters, { refetch: refetchMatters }] = createResource(
     () => {
-      if (activeView() !== 'matters' && selectedMatterId() == null) return undefined
+      if (openFacet() == null && activeView() !== 'matters' && selectedMatterId() == null) return undefined
       return true
     },
     () => api.listMatters(),
@@ -128,7 +133,8 @@ export function installResources(): void {
     () => {
       const view = activeView()
       if (
-        view !== 'progress'
+        openFacet() == null
+        && view !== 'progress'
         && view !== 'matters'
         && !settingsOpen()
         && selectedMatterId() == null
