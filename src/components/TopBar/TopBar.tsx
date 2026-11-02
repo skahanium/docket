@@ -1,6 +1,7 @@
 import { type Component, createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js'
 import { listen } from '@tauri-apps/api/event'
 import styles from './TopBar.module.css'
+import { themeMode, setThemeMode, type ThemeMode } from '../../stores'
 import { isDesktopPanelVisible, toggleDesktopPanel } from '../../bindings/panel'
 import { isRuntimeReady } from '../../bindings/core'
 
@@ -8,7 +9,26 @@ interface Props {
   searchValue: string
   onSearchInput: (v: string) => void
   onCreateClick: () => void
-  onSettingsClick: () => void
+}
+
+const ICONS: Record<ThemeMode, () => any> = {
+  light: () => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <circle cx="8" cy="8" r="4" />
+      <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.5 3.5l1.5 1.5M11 11l1.5 1.5M12.5 3.5L11 5M5 11l-1.5 1.5" />
+    </svg>
+  ),
+  dark: () => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <path d="M6 2a6 6 0 106 6 5 5 0 01-6-6z" />
+    </svg>
+  ),
+  system: () => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <rect x="2" y="2" width="12" height="9" rx="1.5" />
+      <path d="M5 14h6M8 11v3" />
+    </svg>
+  ),
 }
 
 const PanelIcon = () => (
@@ -18,12 +38,8 @@ const PanelIcon = () => (
   </svg>
 )
 
-const GearIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="8" cy="8" r="2.2" />
-    <path d="M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M12.4 3.6l-1 1M4.6 11.4l-1 1" />
-  </svg>
-)
+const NEXT: Record<ThemeMode, ThemeMode> = { light: 'dark', dark: 'system', system: 'light' }
+const TITLES: Record<ThemeMode, string> = { light: '日间模式', dark: '夜间模式', system: '跟随系统' }
 
 const TopBar: Component<Props> = (props) => {
   const [panelVisible, setPanelVisible] = createSignal(false)
@@ -117,11 +133,11 @@ const TopBar: Component<Props> = (props) => {
         <button
           type="button"
           class={styles.iconBtn}
-          onClick={props.onSettingsClick}
-          title="设置"
-          aria-label="设置"
+          onClick={() => setThemeMode(NEXT[themeMode()])}
+          title={TITLES[themeMode()]}
+          aria-label={TITLES[themeMode()]}
         >
-          <GearIcon />
+          {ICONS[themeMode()]()}
         </button>
 
         <button class={styles.newBtn} onClick={props.onCreateClick}>

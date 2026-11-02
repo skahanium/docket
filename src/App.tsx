@@ -123,7 +123,6 @@ const App: Component = () => {
           searchValue={searchQuery?.() ?? ''}
           onSearchInput={setSearchQuery}
           onCreateClick={() => openDialog()}
-          onSettingsClick={() => setSettingsOpen(true)}
         />
 
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -133,9 +132,11 @@ const App: Component = () => {
             tags={tags?.() ?? []}
             activeCategoryId={activeCategoryId()}
             activeTagId={activeTagId()}
+            settingsOpen={settingsOpen()}
             onViewChange={(v) => { setActiveView(v); deselectTask(); deselectMatter(); clearFilters() }}
             onCategorySelect={(id) => setActiveCategoryId(id)}
             onTagSelect={(id) => setActiveTagId(id)}
+            onSettingsClick={() => setSettingsOpen(true)}
           />
 
           <main style={{ flex: 1, overflow: 'hidden' }}>
