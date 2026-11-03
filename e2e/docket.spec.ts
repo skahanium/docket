@@ -124,3 +124,71 @@ test.describe('模板步骤编辑器', () => {
     expect(lb!.height).toBeLessThanOrEqual(44)
   })
 })
+
+test.describe('指标期间文案', () => {
+  test('10 月指标卡显示「至 10-31」，不写 11-01', async ({ page }) => {
+    const cadence = {
+      id: 1,
+      title: '月度办结',
+      period: 'month',
+      target_count: null,
+      created_at: '2026-11-01T00:00:00+00:00',
+      playbook_ids: [],
+      tag_ids: [],
+    }
+    await bootApp(page, {
+      list_cadences: [cadence],
+      get_cadence_progress: {
+        cadence,
+        completed_count: 0,
+        matching_matters: [],
+        period_start: '2026-10-01',
+        period_end: '2026-11-01',
+      },
+    })
+    await page.getByRole('button', { name: '进展' }).click()
+    await expect(page.getByText('2026-10-01 至 2026-10-31')).toBeVisible()
+    await expect(page.getByText('至 2026-11-01')).toHaveCount(0)
+  })
+})
+
+test.describe('桌面面板', () => {
+  test('缺依据的当前步带角标', async ({ page }) => {
+    await bootApp(page, {
+      get_desktop_panel_snapshot: {
+        today: [
+          { kind: 'matter_step', id: 5, title: '依据步', subtitle: '手测事项', due_date: null, priority: 0, matter_id: 1, missing_evidence: true },
+        ],
+        overdue: [],
+        generated_at: '2026-11-03T00:00:00+00:00',
+      },
+    })
+    await page.goto('/panel.html')
+    await expect(page.getByText('依据步')).toBeVisible()
+    await expect(page.getByText('缺依据')).toBeVisible()
+  })
+})
+
+test.describe('事项主线推进', () => {
+  test('从模板建事项，完成当前步露出下一步（缺依据不拦）', async ({ page }) => {
+    await bootApp(page)
+
+    // 从模板建事项
+    await page.getByRole('button', { name: '新建', exact: true }).click()
+    await page.getByRole('button', { name: '从模板' }).click()
+    await page.locator('select').filter({ hasText: '选择流程模板' }).selectOption({ label: '手测模板' })
+    await page.getByPlaceholder('事项标题').fill('主线事项')
+    await page.getByRole('button', { name: '创建事项' }).click()
+    await page.keyboard.press('Escape')
+
+    // 今日露出当前步；依据步缺依据，徽标在
+    await expect(page.getByText('依据步')).toBeVisible()
+    await expect(page.getByText('缺依据').first()).toBeVisible()
+
+    // 缺依据不拦完成：勾掉当前步 → 下一步顶上
+    await page.getByRole('checkbox', { name: '未完成' }).first().click()
+    await expect(page.getByText('已完成当前步')).toBeVisible()
+    await expect(page.getByText('第二步')).toBeVisible()
+    await expect(page.getByText('缺依据')).toHaveCount(0)
+  })
+})

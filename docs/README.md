@@ -7,6 +7,7 @@ UI 改动另受 **[design.md](design.md)**（版式与禁则）与根目录 **[A
 
 ## `plans/` 目录（当前有效）
 
+- [`2026-11-03-handtest-e2e-cache.md`](plans/2026-11-03-handtest-e2e-cache.md) — 手测三态清账、e2e 扩容（指标文案/面板角标/事项主线）、CI 浏览器缓存
 - [`2026-11-03-e2e-toast.md`](plans/2026-11-03-e2e-toast.md) — toast 禁则修正 + Playwright E2E 首批（fixture 注入，不引 tauri-driver）
 - [`2026-11-03-foundation-batch.md`](plans/2026-11-03-foundation-batch.md) — 基础建设批：AGENTS.md、design.md、CI 门
 - [`2026-11-03-ui-settings-polish.md`](plans/2026-11-03-ui-settings-polish.md) — UI 收整：设置 9→6、卡片语法、选中态去蓝条、模板步骤卡修复、混合保存

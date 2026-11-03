@@ -44,6 +44,12 @@ jobs:
       - name: Bindings match committed generated.ts
         run: npm run check:bindings
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
 

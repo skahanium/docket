@@ -7,7 +7,11 @@
 
 ### Added
 - `AGENTS.md` / `docs/design.md`：AI 协作宪法与 UI 版式约束
-- CI 五道验证门（`.github/workflows/ci.yml`），含 Playwright E2E 首批（壳层选中态、分类独立页、toast 禁则、模板步骤回归）
+- CI 五道验证门（`.github/workflows/ci.yml`），含 Playwright E2E（壳层选中态、分类独立页、toast 禁则、模板步骤回归、指标期间文案、桌面面板缺依据角标、事项主线推进）
+- CI Playwright 浏览器缓存（省 1–2 分钟/跑）
+
+### Changed
+- 手测销号改为三态（e2e 覆盖 / Rust 覆盖已销 / 仍手测），`剩余清单.md` 关单
 
 ### Fixed
 - toast 彩色左条（违反强调色禁则）：改为图标 + 文案语义
