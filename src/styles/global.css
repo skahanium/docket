@@ -9,6 +9,7 @@
   --bg-elevated: #FFFFFF;
   --bg-hover: #F0F0F0;
   --bg-active: #EFF6FF;
+  --bg-selected: #EAEAEA;
   --bg-subtle: #F8F8F8;
   --text-main: #171717;
   --text-sub: #737373;
@@ -67,6 +68,7 @@
   --bg-elevated: #1C1C1C;
   --bg-hover: #222222;
   --bg-active: #0C1A30;
+  --bg-selected: #2A2A2A;
   --bg-subtle: #141414;
   --text-main: #EDEDED;
   --text-sub: #A1A1A0;

@@ -116,9 +116,7 @@
 
 .itemActive {
   color: var(--text-main);
-  font-weight: 500;
-  background: var(--bg-active);
-  box-shadow: inset 3px 0 0 var(--accent);
+  background: var(--bg-selected);
 }
 
 .dot {

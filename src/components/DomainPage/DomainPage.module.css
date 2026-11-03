@@ -93,6 +93,14 @@
   max-width: 100%;
 }
 .stepActions { margin-top: 2px; }
+.stepMeta {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.stepCheck {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-sub); cursor: pointer; user-select: none;
+}
 .stepCurrent { border-color: var(--accent); background: var(--accent-subtle); }
 .stepDone { color: var(--text-label); }
 .stepDone .stepTitle { color: var(--text-label); }

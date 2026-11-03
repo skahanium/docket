@@ -9,13 +9,10 @@ import domainStyles from '../DomainPage/DomainPage.module.css'
 
 const PAGES: { key: SettingsPage; label: string }[] = [
   { key: 'general', label: '常规' },
-  { key: 'appearance', label: '外观' },
-  { key: 'notifications', label: '通知' },
-  { key: 'panel', label: '桌面面板' },
+  { key: 'runtime', label: '提醒与面板' },
   { key: 'categories', label: '分类' },
   { key: 'tags', label: '标签' },
   { key: 'playbooks', label: '模板' },
-  { key: 'holidays', label: '节假日' },
   { key: 'data', label: '数据' },
 ]
 

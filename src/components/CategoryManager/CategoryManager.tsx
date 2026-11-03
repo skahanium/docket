@@ -1,5 +1,5 @@
 import { type Component, createSignal, For, Show } from 'solid-js'
-import styles from './CategoryManager.module.css'
+import styles from '../shared/Manager.module.css'
 import { createCategory, updateCategory, deleteCategory, categories, refetchCategories, pushToast } from '../../stores'
 import type { Category } from '../../bindings/types'
 

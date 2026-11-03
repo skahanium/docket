@@ -1,5 +1,5 @@
 import { type Component, createSignal, For, Show } from 'solid-js'
-import styles from './TagManager.module.css'
+import styles from '../shared/Manager.module.css'
 import { createTag, updateTag, deleteTag, tags, refetchTags, pushToast } from '../../stores'
 import type { Tag } from '../../bindings/types'
 

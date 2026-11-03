@@ -104,33 +104,36 @@ const PlaybookPage: Component<Props> = (props) => {
           <For each={steps()}>
             {(step, i) => (
               <div class={styles.step}>
-                <span>{i() + 1}</span>
-                <input
-                  class={styles.input}
-                  value={step.title}
-                  onInput={(e) => {
-                    const next = [...steps()]
-                    next[i()] = { ...next[i()], title: e.currentTarget.value }
-                    setSteps(next)
-                  }}
-                />
-                <div>
-                  <label class={styles.cardMeta}>
-                    <input
-                      type="checkbox"
-                      checked={step.evidence_required}
-                      onChange={(e) => {
-                        const next = [...steps()]
-                        next[i()] = { ...next[i()], evidence_required: e.currentTarget.checked }
-                        setSteps(next)
-                      }}
-                    />
-                    {' '}需要依据
-                  </label>
-                  <div class={styles.row}>
-                    <button type="button" class={styles.btn} disabled={i() === 0} onClick={() => moveStep(i(), -1)}>上移</button>
-                    <button type="button" class={styles.btn} disabled={i() === steps().length - 1} onClick={() => moveStep(i(), 1)}>下移</button>
-                    <button type="button" class={styles.btn} onClick={() => removeStep(i())}>删除</button>
+                <span class={styles.stepMark}>{i() + 1}</span>
+                <div class={styles.stepBody}>
+                  <input
+                    class={styles.input}
+                    value={step.title}
+                    placeholder="步骤名称"
+                    onInput={(e) => {
+                      const next = [...steps()]
+                      next[i()] = { ...next[i()], title: e.currentTarget.value }
+                      setSteps(next)
+                    }}
+                  />
+                  <div class={styles.stepMeta}>
+                    <label class={styles.stepCheck}>
+                      <input
+                        type="checkbox"
+                        checked={step.evidence_required}
+                        onChange={(e) => {
+                          const next = [...steps()]
+                          next[i()] = { ...next[i()], evidence_required: e.currentTarget.checked }
+                          setSteps(next)
+                        }}
+                      />
+                      需要依据
+                    </label>
+                    <div class={styles.row}>
+                      <button type="button" class={styles.btn} disabled={i() === 0} onClick={() => moveStep(i(), -1)}>上移</button>
+                      <button type="button" class={styles.btn} disabled={i() === steps().length - 1} onClick={() => moveStep(i(), 1)}>下移</button>
+                      <button type="button" class={styles.btn} onClick={() => removeStep(i())}>删除</button>
+                    </div>
                   </div>
                 </div>
               </div>
