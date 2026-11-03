@@ -213,9 +213,10 @@ const CreateTaskDialog: Component<Props> = (props) => {
                 <input
                   type="number"
                   min={1}
+                  max={999}
                   class={styles.intervalInput}
                   value={interval()}
-                  onInput={(e) => setInterval(Math.max(1, Number(e.currentTarget.value)))}
+                  onInput={(e) => setInterval(Math.max(1, Math.min(999, Number(e.currentTarget.value))))}
                 />
                 <span>{freq() === 'daily' ? '天' : freq() === 'weekly' ? '周' : '个月'}</span>
               </div>

@@ -181,7 +181,13 @@ pub fn complete_task_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
         if let Some(rule) = crate::recurrence::parse_rule(&rule_json) {
             let root_id = parent_id.unwrap_or(id);
             let base_date = due_date.unwrap_or_else(crate::time::local_today_date);
-            if let Some(next_date) = crate::recurrence::next_occurrence(&rule, &base_date) {
+            // Late completion skips missed dates; never spawn an already-overdue
+            // instance just because the parent was completed late.
+            if let Some(next_date) = crate::recurrence::next_occurrence_after(
+                &rule,
+                &base_date,
+                crate::time::local_today_naive(),
+            ) {
                 let should_create = if let Some(ref end_count) = rule.end_count {
                     let existing: i64 = tx
                         .query_row(
@@ -810,5 +816,162 @@ mod list_tests {
         let restored = get_task_on_conn(&conn, id).unwrap();
         assert_eq!(restored.status, task_status::ACTIVE);
         assert!(restored.completed_at.is_none());
+    }
+}
+
+#[cfg(test)]
+mod recurrence_tests {
+    use super::*;
+    use chrono::Days;
+
+    fn conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::init_db(&conn).unwrap();
+        conn
+    }
+
+    fn fmt(d: chrono::NaiveDate) -> String {
+        d.format("%Y-%m-%d").to_string()
+    }
+
+    fn daily_rule_json(
+        interval: i32,
+        end_type: &str,
+        end_date: Option<&str>,
+        end_count: Option<i32>,
+    ) -> String {
+        serde_json::json!({
+            "freq": "daily",
+            "interval": interval,
+            "days": null,
+            "end_type": end_type,
+            "end_date": end_date,
+            "end_count": end_count,
+        })
+        .to_string()
+    }
+
+    fn create_recurring(conn: &Connection, title: &str, due: &str, rule: String) -> i64 {
+        create_task_on_conn(
+            conn,
+            CreateTaskInput {
+                title: title.into(),
+                description: None,
+                priority: None,
+                due_date: Some(due.into()),
+                category_id: None,
+                recurrence_rule: Some(rule),
+                estimated_minutes: None,
+            },
+        )
+        .unwrap()
+    }
+
+    fn active_due_dates(conn: &Connection) -> Vec<String> {
+        let mut stmt = conn
+            .prepare("SELECT due_date FROM tasks WHERE status='active' ORDER BY id")
+            .unwrap();
+        stmt.query_map([], |r| r.get::<_, String>(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect()
+    }
+
+    #[test]
+    fn late_recurring_completion_skips_missed_days() {
+        let conn = conn();
+        let today = crate::time::local_today_naive();
+        let yesterday = today - Days::new(1);
+        let root = create_recurring(
+            &conn,
+            "晚完成的每日任务",
+            &fmt(yesterday),
+            daily_rule_json(1, "never", None, None),
+        );
+
+        complete_task_on_conn(&conn, root).unwrap();
+
+        assert_eq!(
+            active_due_dates(&conn),
+            vec![fmt(today + Days::new(1))],
+            "迟到完成不应生成昨天的下一次"
+        );
+    }
+
+    #[test]
+    fn late_recurring_completion_keeps_time() {
+        let conn = conn();
+        let today = crate::time::local_today_naive();
+        let yesterday = today - Days::new(1);
+        let due = format!("{}T15:00", fmt(yesterday));
+        let root = create_recurring(
+            &conn,
+            "晚完成带时刻",
+            &due,
+            daily_rule_json(1, "never", None, None),
+        );
+
+        complete_task_on_conn(&conn, root).unwrap();
+
+        assert_eq!(
+            active_due_dates(&conn),
+            vec![format!("{}T15:00", fmt(today + Days::new(1)))]
+        );
+    }
+
+    #[test]
+    fn late_recurring_completion_respects_end_date() {
+        let conn = conn();
+        let today = crate::time::local_today_naive();
+        let yesterday = today - Days::new(1);
+        let end = fmt(today);
+        let root = create_recurring(
+            &conn,
+            "过期截止",
+            &fmt(yesterday),
+            daily_rule_json(1, "date", Some(&end), None),
+        );
+
+        complete_task_on_conn(&conn, root).unwrap();
+
+        assert!(active_due_dates(&conn).is_empty());
+    }
+
+    #[test]
+    fn late_recurring_completion_respects_end_count() {
+        let conn = conn();
+        let today = crate::time::local_today_naive();
+        let yesterday = today - Days::new(1);
+        let root = create_recurring(
+            &conn,
+            "只一次",
+            &fmt(yesterday),
+            daily_rule_json(1, "count", None, Some(1)),
+        );
+
+        complete_task_on_conn(&conn, root).unwrap();
+
+        assert!(active_due_dates(&conn).is_empty());
+    }
+
+    #[test]
+    fn early_recurring_completion_uses_natural_next() {
+        let conn = conn();
+        let today = crate::time::local_today_naive();
+        let tomorrow = today + Days::new(1);
+        let root = create_recurring(
+            &conn,
+            "提前完成",
+            &fmt(tomorrow),
+            daily_rule_json(1, "never", None, None),
+        );
+
+        complete_task_on_conn(&conn, root).unwrap();
+
+        assert_eq!(
+            active_due_dates(&conn),
+            vec![fmt(today + Days::new(2))],
+            "提前完成仍按 due 推，不从今天推"
+        );
     }
 }

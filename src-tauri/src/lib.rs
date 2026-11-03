@@ -1,5 +1,6 @@
 pub mod agenda;
 mod app_windows;
+mod backup;
 pub mod bindings_export;
 pub mod cadence;
 pub mod commands;
@@ -164,6 +165,16 @@ pub fn run() {
             scheduler::start_reminder_loop(app_handle, Arc::new(Mutex::new(scheduler_conn)));
 
             app.manage(DbState(Mutex::new(conn)));
+
+            // Best-effort daily snapshot; never block or fail app startup.
+            let backup_db_path = db_path.clone();
+            let backup_app_dir = app_data_dir.clone();
+            std::thread::spawn(move || {
+                if let Err(e) = backup::auto_backup_on_start(&backup_db_path, &backup_app_dir) {
+                    log::warn!("auto backup failed: {e}");
+                }
+            });
+
 
             #[cfg(desktop)]
             {

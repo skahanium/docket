@@ -835,7 +835,14 @@ mod tests {
         let conn = conn();
         let (_pb, mid) = seeded_matter(&conn);
         let step = current_pending_step(&conn, mid).unwrap().unwrap();
-        crate::evidence::add_step_link_on_conn(&conn, step.id, "file", "/tmp/docket-evidence.txt").unwrap();
+        let evidence_path = std::env::temp_dir().join("docket-evidence.txt");
+        crate::evidence::add_step_link_on_conn(
+            &conn,
+            step.id,
+            "file",
+            &evidence_path.display().to_string(),
+        )
+        .unwrap();
         delete_matter_on_conn(&conn, mid).unwrap();
         let n: i64 = conn
             .query_row("SELECT COUNT(*) FROM matters WHERE id=?1", params![mid], |r| r.get(0))

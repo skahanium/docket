@@ -472,7 +472,7 @@ const SettingsPanel: Component<Props> = (props) => {
           <div class={styles.cardHead}>
             <p class={styles.cardTitle}>数据与备份</p>
             <p class={styles.cardHint}>
-              备份与迁移可一键存快照（VACUUM INTO，含 WAL 内容），或直接复制该文件；建议先退出应用或复制后校验。不含事项依据指向的卷宗文件，不需要 JSON 导入导出。
+              备份与迁移可一键存快照（VACUUM INTO，含 WAL 内容），或直接复制该文件；建议先退出应用或复制后校验。每天首次启动会自动备份一份到数据目录下的 backups/，保留最近 14 份；不含事项依据指向的卷宗文件，不需要 JSON 导入导出。
             </p>
           </div>
           <code class={styles.path} title={dbPath() ?? ''}>

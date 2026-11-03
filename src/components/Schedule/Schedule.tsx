@@ -12,6 +12,7 @@ import {
   clearFilters,
 } from '../../stores'
 import { addDaysLocal, dayDiffFromToday, localDateString, parseLocalDate } from '../../utils/date'
+import ConfirmDialog from '../ConfirmDialog/ConfirmDialog'
 
 const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -31,6 +32,13 @@ interface Props {
 const Schedule: Component<Props> = (props) => {
   const [internalDate, setInternalDate] = createSignal(todayStr())
   const [refetchTrigger, setRefetchTrigger] = createSignal(0)
+  const [confirmAction, setConfirmAction] = createSignal<{
+    title: string
+    message: string
+    confirmLabel: string
+    danger?: boolean
+    fn: () => void
+  } | null>(null)
   const controlled = () => props.date != null
   const scheduleDate = () => props.date ?? internalDate()
 
@@ -53,7 +61,14 @@ const Schedule: Component<Props> = (props) => {
 
   const goToday = () => setInternalDate(todayStr())
 
-  const handleAutoSchedule = async () => {
+  const scheduleReady = () => !scheduleData.loading && data()?.date === scheduleDate()
+
+  const entryCount = () => {
+    const d = data()
+    return d && d.date === scheduleDate() ? d.entries.length : 0
+  }
+
+  const doAutoSchedule = async () => {
     try {
       await autoSchedule(scheduleDate())
       setRefetchTrigger(t => t + 1)
@@ -64,14 +79,46 @@ const Schedule: Component<Props> = (props) => {
     }
   }
 
-  const handleClear = async () => {
+  const doClear = async () => {
     try {
       await clearSchedule(scheduleDate())
       setRefetchTrigger(t => t + 1)
+      pushToast('success', '已清空当天排程')
       invalidateAfterTaskMutation()
     } catch (e) {
       pushToast('error', `清空失败: ${e}`)
     }
+  }
+
+  const handleAutoSchedule = () => {
+    if (!scheduleReady()) return
+    const n = entryCount()
+    if (n === 0) {
+      void doAutoSchedule()
+      return
+    }
+    setConfirmAction({
+      title: '重新自动排程？',
+      message: `当天已有 ${n} 条排程，自动排程会先清空再重排，手动安排会丢失。`,
+      confirmLabel: '继续',
+      fn: () => void doAutoSchedule(),
+    })
+  }
+
+  const handleClear = () => {
+    if (!scheduleReady()) return
+    const n = entryCount()
+    if (n === 0) {
+      void doClear()
+      return
+    }
+    setConfirmAction({
+      title: '清空当天排程？',
+      message: `将删除当天 ${n} 条排程，此操作不可撤销。`,
+      confirmLabel: '清空',
+      danger: true,
+      fn: () => void doClear(),
+    })
   }
 
   const handleRemove = async (taskId: number) => {
@@ -157,10 +204,10 @@ const Schedule: Component<Props> = (props) => {
         </Show>
         <div class={styles.actions}>
           {scheduleData.loading && <div class={styles.spinner} />}
-          <button class={styles.autoBtn} onClick={handleAutoSchedule} disabled={scheduleData.loading}>
+          <button class={styles.autoBtn} onClick={handleAutoSchedule} disabled={!scheduleReady()}>
             自动排程
           </button>
-          <button class={styles.clearBtn} onClick={handleClear}>
+          <button class={styles.clearBtn} onClick={handleClear} disabled={!scheduleReady()}>
             清空
           </button>
         </div>
@@ -281,6 +328,19 @@ const Schedule: Component<Props> = (props) => {
           </Show>
         </Match>
       </Switch>
+
+      <ConfirmDialog
+        open={!!confirmAction()}
+        title={confirmAction()?.title ?? ''}
+        message={confirmAction()?.message ?? ''}
+        confirmLabel={confirmAction()?.confirmLabel}
+        danger={confirmAction()?.danger}
+        onConfirm={() => {
+          confirmAction()?.fn()
+          setConfirmAction(null)
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

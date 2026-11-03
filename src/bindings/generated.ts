@@ -48,6 +48,7 @@ export type CalendarDay = {
 	date: string,
 	task_count: number,
 	completed_count: number,
+	matter_step_count: number,
 };
 
 export type Category = {

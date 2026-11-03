@@ -34,13 +34,13 @@
 
 ## 今日 / 逾期
 
-- 任务：沿用 `agenda::today_active_predicate` / `overdue_active_predicate`（本地日历日）
+- 任务：沿用 `agenda::today_active_predicate` / `overdue_active_predicate`（本地日历日；今日含 `priority >= 2` 且无到期日或未到期的任务）
 - 事项：每个 `active` 事项的当前步一律进入今日
 - 逾期：当前步或事项的到期**日**早于本地今日（时刻不参与按日比较）
 - 投影类型 `AgendaItem`（含 `category_id` / `tag_ids`），禁止把步骤插入 `tasks` 表
 - **今日视图含逾期分段**：一次拉逾期与今日两条议程，列表两段「逾期 / 今日」；无独立逾期侧栏。统计卡「逾期任务」跳到今日
 - 侧栏按**单分类、单标签**筛议程（事项步跟事项的分类/标签；无分类项在选了分类时排除）
-- 月历 `task_count` 为当日项数：任务 + 进行中事项的当前 pending 步到期；点某日仍只筛任务，并在格下嵌当天任务列表与排程（排程仍只排任务）
+- 月历 `task_count` / `completed_count` 只算任务（含已完成归档，归档不抹历史；进行中已归档仍隐藏）；`matter_step_count` 单独算进行中事项的当前 pending 步到期；格子分别显示任务完成情况与步骤数（`N 步`）；点某日仍只筛任务，并在格下嵌当天任务列表与排程（排程仍只排任务）
 - 议程/任务卡可拖到日历格改期；已有时刻只换日期前缀
 - 每日复盘一行：本地日 `completed_at` 的完成步数（`status=completed`，跳过不计）与办结事项数（不用 RFC3339 字面比）
 

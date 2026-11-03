@@ -169,6 +169,85 @@ test.describe('桌面面板', () => {
   })
 })
 
+test.describe('日历与排程确认', () => {
+  test('月历显示步骤数，自动排程/清空先确认', async ({ page }) => {
+    const day = '2026-11-15'
+    await bootApp(page, {
+      get_calendar_month: [
+        { date: day, task_count: 1, completed_count: 0, matter_step_count: 2 },
+      ],
+      get_schedule: {
+        date: day,
+        is_workday: true,
+        am_block: { start: '08:30', end: '12:00', label: '上午' },
+        pm_block: { start: '14:30', end: '18:00', label: '下午' },
+        entries: [
+          {
+            id: 1,
+            task_id: 1,
+            task_title: '已有安排',
+            task_priority: 1,
+            date: day,
+            start_time: '09:00',
+            duration_minutes: 30,
+            sort_order: 0,
+            completed: false,
+            category_color: null,
+          },
+        ],
+        unscheduled: [],
+        scheduled_minutes: 30,
+        available_minutes: 420,
+      },
+    })
+
+    await page.getByRole('button', { name: '日历', exact: true }).click()
+    await expect(page.getByRole('gridcell').first()).toBeVisible()
+    await expect(page.getByText('2 步')).toBeVisible()
+
+    await page.getByRole('gridcell').first().click()
+    const autoBtn = page.getByRole('button', { name: '自动排程' })
+    await expect(autoBtn).toBeEnabled()
+    await autoBtn.click()
+
+    let dialog = page.getByRole('alertdialog')
+    await expect(dialog).toContainText('已有 1 条排程')
+    await dialog.getByRole('button', { name: '取消' }).click()
+    expect(await page.evaluate(() => window.__E2E_STATE__?.commands ?? [])).not.toContain('auto_schedule')
+
+    await autoBtn.click()
+    dialog = page.getByRole('alertdialog')
+    await dialog.getByRole('button', { name: '继续' }).click()
+    await expect(page.getByText('日程已自动排好')).toBeVisible()
+    expect(await page.evaluate(() => window.__E2E_STATE__?.commands ?? [])).toContain('auto_schedule')
+
+    const clearBtn = page.getByRole('button', { name: '清空', exact: true })
+    await expect(clearBtn).toBeEnabled()
+    await clearBtn.click()
+    dialog = page.getByRole('alertdialog')
+    await expect(dialog).toContainText('将删除当天 1 条排程')
+    await dialog.getByRole('button', { name: '取消' }).click()
+    expect(await page.evaluate(() => window.__E2E_STATE__?.commands ?? [])).not.toContain('clear_schedule')
+  })
+
+  test('排程加载失败时禁用自动排程与清空', async ({ page }) => {
+    const day = '2026-11-15'
+    await bootApp(page, {
+      get_calendar_month: [
+        { date: day, task_count: 0, completed_count: 0, matter_step_count: 0 },
+      ],
+      get_schedule: null,
+    })
+
+    await page.getByRole('button', { name: '日历', exact: true }).click()
+    await expect(page.getByRole('gridcell').first()).toBeVisible()
+    await page.getByRole('gridcell').first().click()
+    await expect(page.getByText('加载失败')).toBeVisible()
+    await expect(page.getByRole('button', { name: '自动排程' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: '清空', exact: true })).toBeDisabled()
+  })
+})
+
 test.describe('事项主线推进', () => {
   test('从模板建事项，完成当前步露出下一步（缺依据不拦）', async ({ page }) => {
     await bootApp(page)

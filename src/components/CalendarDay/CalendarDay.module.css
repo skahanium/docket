@@ -56,6 +56,13 @@
 }
 
 .dots { display: flex; gap: 3px; margin-top: 3px; align-items: center; }
+.stepCount {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  margin-left: 2px;
+}
 .dot { width: 5px; height: 5px; border-radius: 50%; }
 .dotPending { background: var(--accent); }
 .dotDone { background: var(--success); opacity: 0.5; }

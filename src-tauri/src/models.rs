@@ -93,6 +93,7 @@ pub struct CalendarDay {
     pub date: String,
     pub task_count: i32,
     pub completed_count: i32,
+    pub matter_step_count: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

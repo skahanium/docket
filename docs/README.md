@@ -5,8 +5,13 @@
 当前实现以仓库根目录 **[README.md](../README.md)** 与代码为准。
 UI 改动另受 **[design.md](design.md)**（版式与禁则）与根目录 **[AGENTS.md](../AGENTS.md)**（工作约束）节制。
 
+## 根目录
+
+- [`审查遗留清单.md`](../审查遗留清单.md) — 前期产品/代码审查中尚未处理的设计债、风险与红线议题；不是承诺，按状态推进。
+
 ## `plans/` 目录（当前有效）
 
+- [`2026-11-04-bugfix-wave.md`](plans/2026-11-04-bugfix-wave.md) — 缺陷修复：复发顺延、日历任务/步骤分开、排程确认、每日自动备份
 - [`2026-11-03-handtest-e2e-cache.md`](plans/2026-11-03-handtest-e2e-cache.md) — 手测三态清账、e2e 扩容（指标文案/面板角标/事项主线）、CI 浏览器缓存
 - [`2026-11-03-e2e-toast.md`](plans/2026-11-03-e2e-toast.md) — toast 禁则修正 + Playwright E2E 首批（fixture 注入，不引 tauri-driver）
 - [`2026-11-03-foundation-batch.md`](plans/2026-11-03-foundation-batch.md) — 基础建设批：AGENTS.md、design.md、CI 门

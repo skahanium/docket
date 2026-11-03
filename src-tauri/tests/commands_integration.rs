@@ -7,6 +7,7 @@ use app_lib::commands::tasks::{
 };
 use app_lib::db::lock_conn;
 use app_lib::testing::in_memory_db;
+use chrono::{Days, NaiveDate};
 
 #[test]
 fn create_list_complete_task_flow() {
@@ -161,16 +162,18 @@ fn calendar_month_counts_current_pending_step_due() {
     let days = get_calendar_month_on_conn(&conn, 2026, 6).expect("calendar");
     let tenth = days.iter().find(|d| d.date == "2026-06-10").expect("10");
     let twentieth = days.iter().find(|d| d.date == "2026-06-20").expect("20");
-    assert_eq!(tenth.task_count, 1);
+    assert_eq!(tenth.task_count, 0);
+    assert_eq!(tenth.matter_step_count, 1);
     assert_eq!(twentieth.task_count, 0);
+    assert_eq!(twentieth.matter_step_count, 0);
 
     let first = current_pending_step(&conn, mid).unwrap().unwrap();
     complete_matter_step_on_conn(&conn, first.id).unwrap();
     let after = get_calendar_month_on_conn(&conn, 2026, 6).expect("calendar after");
     let tenth_after = after.iter().find(|d| d.date == "2026-06-10").expect("10");
     let twentieth_after = after.iter().find(|d| d.date == "2026-06-20").expect("20");
-    assert_eq!(tenth_after.task_count, 0);
-    assert_eq!(twentieth_after.task_count, 1);
+    assert_eq!(tenth_after.matter_step_count, 0);
+    assert_eq!(twentieth_after.matter_step_count, 1);
 }
 
 #[test]
@@ -278,6 +281,13 @@ fn daily_rule(end_count: i32) -> String {
     format!(r#"{{"freq":"daily","interval":1,"end_type":"count","end_count":{end_count}}}"#)
 }
 
+/// Keep recurrence tests independent of the current clock: due dates are
+/// relative to local today so late-completion roll-forward never kicks in.
+fn plus_days(days: u64) -> String {
+    let today = NaiveDate::parse_from_str(&app_lib::local_today_date(), "%Y-%m-%d").unwrap();
+    (today + Days::new(days)).format("%Y-%m-%d").to_string()
+}
+
 fn series_ids(conn: &rusqlite::Connection, root: i64) -> Vec<i64> {
     let mut stmt = conn
         .prepare("SELECT id FROM tasks WHERE id=?1 OR recurrence_parent_id=?1 ORDER BY id")
@@ -298,7 +308,7 @@ fn recurrence_end_count_two_stops_after_second_instance() {
             title: "Repeat twice".into(),
             description: None,
             priority: None,
-            due_date: Some("2026-05-11".into()),
+            due_date: Some(plus_days(1)),
             category_id: None,
             recurrence_rule: Some(daily_rule(2)),
             estimated_minutes: None,
@@ -333,7 +343,7 @@ fn recurrence_end_count_one_does_not_spawn() {
             title: "Once".into(),
             description: None,
             priority: None,
-            due_date: Some("2026-05-11".into()),
+            due_date: Some(plus_days(1)),
             category_id: None,
             recurrence_rule: Some(daily_rule(1)),
             estimated_minutes: None,
@@ -355,7 +365,7 @@ fn recurrence_spawn_keeps_local_time() {
             title: "Timed repeat".into(),
             description: None,
             priority: None,
-            due_date: Some("2026-06-15T15:00".into()),
+            due_date: Some(format!("{}T15:00", plus_days(1))),
             category_id: None,
             recurrence_rule: Some(daily_rule(2)),
             estimated_minutes: None,
@@ -375,7 +385,7 @@ fn recurrence_spawn_keeps_local_time() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(child_due, "2026-06-16T15:00");
+    assert_eq!(child_due, format!("{}T15:00", plus_days(2)));
 }
 
 #[test]
@@ -388,7 +398,7 @@ fn recurrence_instance_inherits_tags_and_pending_subtasks() {
             title: "Templated".into(),
             description: None,
             priority: None,
-            due_date: Some("2026-05-11".into()),
+            due_date: Some(plus_days(1)),
             category_id: None,
             recurrence_rule: Some(daily_rule(5)),
             estimated_minutes: None,

@@ -14,6 +14,7 @@ interface Props {
 
 const CalendarDay: Component<Props> = (props) => {
   const dayNum = parseInt(props.data.date.split('-')[2], 10)
+  const stepCount = () => props.data.matter_step_count ?? 0
   const allDone = props.data.task_count > 0 && props.data.task_count === props.data.completed_count
   const hasPending = props.data.task_count > props.data.completed_count
   const [dragOver, setDragOver] = createSignal(false)
@@ -43,7 +44,7 @@ const CalendarDay: Component<Props> = (props) => {
       class={cellClass()}
       role="gridcell"
       tabindex={0}
-      aria-label={`${dayNum}日，${props.data.task_count}项${hasPending ? `，${props.data.task_count - props.data.completed_count}项待完成` : ''}`}
+      aria-label={`${dayNum}日，${props.data.task_count}项任务${hasPending ? `，${props.data.task_count - props.data.completed_count}项待完成` : ''}${stepCount() > 0 ? `，${stepCount()}个事项步骤` : ''}`}
       onClick={props.onSelect}
       onDblClick={props.onDoubleClick}
       onKeyDown={(e) => { if (e.key === 'Enter') props.onSelect() }}
@@ -76,7 +77,14 @@ const CalendarDay: Component<Props> = (props) => {
             <For each={Array.from({ length: Math.min(doneDots, 3 - pendingDots) })}>{() => <span class={`${styles.dot} ${styles.dotDone}`} />}</For>
           </Show>
           {overflow && <span class={styles.overflow}>{overflow}</span>}
+          <Show when={stepCount() > 0}>
+            <span class={styles.stepCount}>{stepCount()} 步</span>
+          </Show>
         </div>
+      </Show>
+
+      <Show when={!hasTasks && stepCount() > 0}>
+        <span class={styles.stepCount}>{stepCount()} 步</span>
       </Show>
     </div>
   )

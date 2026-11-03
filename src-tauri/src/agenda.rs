@@ -562,6 +562,76 @@ mod tests {
     }
 
     #[test]
+    fn today_agenda_includes_high_priority_undated_or_future_task() {
+        use crate::commands::tasks::{create_task_on_conn, CreateTaskInput};
+        use crate::db;
+        use rusqlite::Connection;
+
+        let conn = Connection::open_in_memory().unwrap();
+        db::init_db(&conn).unwrap();
+        let high = create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "高优先级无日期".into(),
+                description: None,
+                priority: Some(2),
+                due_date: None,
+                category_id: None,
+                recurrence_rule: None,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap();
+        let low = create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "低优先级无日期".into(),
+                description: None,
+                priority: Some(0),
+                due_date: None,
+                category_id: None,
+                recurrence_rule: None,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap();
+        let future = crate::time::local_today_naive() + chrono::Days::new(1);
+        let future_due = future.format("%Y-%m-%d").to_string();
+        let high_future = create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "高优先级未来".into(),
+                description: None,
+                priority: Some(2),
+                due_date: Some(future_due.clone()),
+                category_id: None,
+                recurrence_rule: None,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap();
+        let low_future = create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "低优先级未来".into(),
+                description: None,
+                priority: Some(0),
+                due_date: Some(future_due),
+                category_id: None,
+                recurrence_rule: None,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap();
+
+        let items = list_agenda_on_conn(&conn, "today").unwrap();
+        assert!(items.iter().any(|i| i.id == high));
+        assert!(!items.iter().any(|i| i.id == low));
+        assert!(items.iter().any(|i| i.id == high_future));
+        assert!(!items.iter().any(|i| i.id == low_future));
+    }
+
+    #[test]
     fn local_date_in_period_uses_local_calendar_not_string_order() {
         let oct_s = NaiveDate::from_ymd_opt(2026, 10, 1).unwrap();
         let oct_e = NaiveDate::from_ymd_opt(2026, 11, 1).unwrap();

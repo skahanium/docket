@@ -1,5 +1,5 @@
 use crate::models::RecurrenceRule;
-use chrono::{Datelike, Days, NaiveDate, Weekday};
+use chrono::{Datelike, Days, NaiveDate};
 
 fn parse_date(s: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
@@ -23,16 +23,12 @@ fn due_time_suffix(s: &str) -> &str {
     }
 }
 
-fn get_weekday_num(w: Weekday) -> i32 {
-    match w {
-        Weekday::Mon => 1,
-        Weekday::Tue => 2,
-        Weekday::Wed => 3,
-        Weekday::Thu => 4,
-        Weekday::Fri => 5,
-        Weekday::Sat => 6,
-        Weekday::Sun => 7,
-    }
+/// Keep interval math bounded: absurd values should not overflow or walk the
+/// calendar out of chrono's supported range.
+const MAX_INTERVAL: i32 = 999;
+
+fn clamped_interval(rule: &RecurrenceRule) -> u64 {
+    rule.interval.clamp(1, MAX_INTERVAL) as u64
 }
 
 pub fn parse_rule(json: &str) -> Option<RecurrenceRule> {
@@ -59,38 +55,65 @@ pub fn next_occurrence(rule: &RecurrenceRule, current_date: &str) -> Option<Stri
     }
 }
 
+/// First occurrence strictly after `not_before` (a local calendar day).
+///
+/// Completing a recurring task late must not spawn an already-overdue instance:
+/// missed dates are skipped rather than generated one by one. `end_date` is
+/// still honored on every step; `end_count` is enforced by the caller.
+pub fn next_occurrence_after(
+    rule: &RecurrenceRule,
+    current_date: &str,
+    not_before: NaiveDate,
+) -> Option<String> {
+    let mut candidate = next_occurrence(rule, current_date)?;
+    // 100k daily steps cover ~273 years; enough for any realistic late task.
+    for _ in 0..100_000 {
+        let day = due_date_part(&candidate)?;
+        if day > not_before {
+            return Some(candidate);
+        }
+        candidate = next_occurrence(rule, &candidate)?;
+    }
+    None
+}
+
 fn next_occurrence_from(rule: &RecurrenceRule, from: NaiveDate) -> Option<NaiveDate> {
     match rule.freq.as_str() {
-        "daily" => {
-            let interval = rule.interval.max(1);
-            Some(from + Days::new(interval as u64))
-        }
+        "daily" => from.checked_add_days(Days::new(clamped_interval(rule))),
         "weekly" => {
-            let interval_days = (rule.interval.max(1) * 7) as u64;
+            let interval_weeks = clamped_interval(rule);
+            let interval_days = interval_weeks * 7;
             if let Some(ref days) = rule.days {
-                if !days.is_empty() {
-                    let from_weekday = get_weekday_num(from.weekday());
-                    let mut best: Option<NaiveDate> = None;
-                    for &day in days.iter() {
-                        let day = day.max(1).min(7);
-                        let day_diff = (day - from_weekday + 7) % 7;
-                        let candidate = if day_diff == 0 {
-                            from + Days::new(interval_days)
-                        } else {
-                            from + Days::new(day_diff as u64)
-                        };
-                        best = Some(match best {
-                            None => candidate,
-                            Some(b) => if candidate < b { candidate } else { b },
-                        });
+                let mut selected: Vec<u32> = days
+                    .iter()
+                    .map(|&day| day.clamp(1, 7) as u32)
+                    .collect();
+                selected.sort_unstable();
+                selected.dedup();
+                if !selected.is_empty() {
+                    // The week containing `from` is the active week. Take the
+                    // next selected weekday later in this week; otherwise jump
+                    // to the first selected weekday of the next active week.
+                    let from_offset = from.weekday().num_days_from_monday() as i64;
+                    let week_start =
+                        from.checked_sub_days(Days::new(from_offset as u64))?;
+                    for &day in &selected {
+                        let offset = (day - 1) as i64;
+                        if offset > from_offset {
+                            return week_start.checked_add_days(Days::new(offset as u64));
+                        }
                     }
-                    return best;
+                    let next_week_start =
+                        week_start.checked_add_days(Days::new(interval_days))?;
+                    let first_offset = (selected[0] - 1) as u64;
+                    return next_week_start
+                        .checked_add_days(Days::new(first_offset));
                 }
             }
-            Some(from + Days::new(interval_days))
+            from.checked_add_days(Days::new(interval_days))
         }
         "monthly" => {
-            let interval = rule.interval.max(1);
+            let interval = clamped_interval(rule) as i32;
             let mut month = from.month() as i32 + interval;
             let mut year = from.year();
             while month > 12 {
@@ -107,6 +130,7 @@ fn next_occurrence_from(rule: &RecurrenceRule, from: NaiveDate) -> Option<NaiveD
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Weekday;
 
     #[test]
     fn test_daily_recurrence() {
@@ -254,5 +278,143 @@ mod tests {
         let next = next_occurrence(&rule, "2026-05-11T15:00").unwrap();
         assert_eq!(next, "2026-05-12T15:00");
         assert!(next_occurrence(&rule, "2026-05-12T15:00").is_none());
+    }
+
+    fn weekly_rule(interval: i32, days: Option<Vec<i32>>) -> RecurrenceRule {
+        RecurrenceRule {
+            freq: "weekly".into(),
+            interval,
+            days,
+            end_type: "never".into(),
+            end_date: None,
+            end_count: None,
+        }
+    }
+
+    fn daily_rule(interval: i32) -> RecurrenceRule {
+        RecurrenceRule {
+            freq: "daily".into(),
+            interval,
+            days: None,
+            end_type: "never".into(),
+            end_date: None,
+            end_count: None,
+        }
+    }
+
+    fn date(s: &str) -> NaiveDate {
+        NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
+    }
+
+    #[test]
+    fn weekly_interval_two_skips_off_week_at_week_boundary() {
+        // 2026-05-15 is Friday; the next Mon/Wed/Fri in an every-2-weeks
+        // schedule is Monday 2026-05-25, not Monday 2026-05-18.
+        let rule = weekly_rule(2, Some(vec![1, 3, 5]));
+        assert_eq!(
+            next_occurrence(&rule, "2026-05-15").as_deref(),
+            Some("2026-05-25")
+        );
+    }
+
+    #[test]
+    fn weekly_interval_two_keeps_later_day_in_active_week() {
+        let rule = weekly_rule(2, Some(vec![1, 3, 5]));
+        assert_eq!(
+            next_occurrence(&rule, "2026-05-11").as_deref(),
+            Some("2026-05-13")
+        );
+    }
+
+    #[test]
+    fn weekly_single_day_interval_two_adds_two_weeks() {
+        let rule = weekly_rule(2, Some(vec![1]));
+        assert_eq!(
+            next_occurrence(&rule, "2026-05-11").as_deref(),
+            Some("2026-05-25")
+        );
+    }
+
+    #[test]
+    fn weekly_empty_days_keeps_weekday() {
+        let rule = weekly_rule(2, None);
+        assert_eq!(
+            next_occurrence(&rule, "2026-05-11").as_deref(),
+            Some("2026-05-25")
+        );
+    }
+
+    #[test]
+    fn weekly_days_are_deduped_and_clamped() {
+        let rule = weekly_rule(1, Some(vec![1, 1, 9]));
+        // 9 clamps to Sunday (7); from Monday the next day is Sunday.
+        assert_eq!(
+            next_occurrence(&rule, "2026-05-11").as_deref(),
+            Some("2026-05-17")
+        );
+    }
+
+    #[test]
+    fn late_daily_completion_lands_after_today() {
+        let rule = daily_rule(1);
+        assert_eq!(
+            next_occurrence_after(&rule, "2026-11-01", date("2026-11-05")).as_deref(),
+            Some("2026-11-06")
+        );
+    }
+
+    #[test]
+    fn late_daily_completion_keeps_time_suffix() {
+        let rule = daily_rule(1);
+        assert_eq!(
+            next_occurrence_after(&rule, "2026-11-01T15:00", date("2026-11-05")).as_deref(),
+            Some("2026-11-06T15:00")
+        );
+    }
+
+    #[test]
+    fn late_weekly_completion_lands_on_next_active_day() {
+        let rule = weekly_rule(1, Some(vec![1]));
+        assert_eq!(
+            next_occurrence_after(&rule, "2026-05-11", date("2026-05-15")).as_deref(),
+            Some("2026-05-18")
+        );
+    }
+
+    #[test]
+    fn late_completion_respects_end_date() {
+        let mut rule = daily_rule(1);
+        rule.end_type = "date".into();
+        rule.end_date = Some("2026-11-05".into());
+        assert_eq!(
+            next_occurrence_after(&rule, "2026-11-01", date("2026-11-05")),
+            None
+        );
+    }
+
+    #[test]
+    fn early_completion_keeps_natural_next_date() {
+        let rule = daily_rule(1);
+        assert_eq!(
+            next_occurrence_after(&rule, "2026-11-10", date("2026-11-05")).as_deref(),
+            Some("2026-11-11")
+        );
+    }
+
+    #[test]
+    fn very_late_daily_completion_still_rolls_forward() {
+        let rule = daily_rule(1);
+        assert_eq!(
+            next_occurrence_after(&rule, "1990-01-01", date("2026-01-01")).as_deref(),
+            Some("2026-01-02")
+        );
+    }
+
+    #[test]
+    fn huge_interval_does_not_overflow() {
+        let rule = daily_rule(i32::MAX);
+        let next = next_occurrence(&rule, "2026-01-01").expect("clamped interval");
+        assert_eq!(next.len(), 10);
+        assert!(next > "2026-01-01".to_string());
     }
 }
