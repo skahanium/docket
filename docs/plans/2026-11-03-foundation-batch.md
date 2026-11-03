@@ -15,7 +15,9 @@
 ## CI 设计
 
 **触发**：push 到 `master`、所有 PR。
-**Runner**：`ubuntu-latest`（rusqlite bundled + jsdom 测试无 GUI 依赖；快且稳）。mac/Win 矩阵留 P2。
+**Runner**：`ubuntu-latest`。**系统依赖**：`cargo test` 会编译 Tauri 链（`glib-sys` 等），须先 apt 安装
+`libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev`
+（首跑教训：漏装则 glib-2.0 编译失败 exit 101）。mac/Win 矩阵留 P2。
 **工具链**：Rust stable（`dtolnay/rust-toolchain@stable`）、Node 22 LTS + npm cache、`Swatinem/rust-cache`。
 
 **Jobs**（单 job 串四步，预期 2–3 分钟）：
