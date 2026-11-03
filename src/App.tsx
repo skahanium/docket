@@ -254,7 +254,7 @@ const App: Component = () => {
       <div role="status" aria-live="polite" style={{ position: 'fixed', top: '16px', right: '16px', 'z-index': '999', display: 'flex', 'flex-direction': 'column', gap: '10px' }}>
         <For each={toasts?.() ?? []}>
           {(t) => {
-            const borderColor = t.type === 'error' ? 'var(--danger)' : t.type === 'success' ? 'var(--success)' : 'var(--accent)'
+            const markColor = t.type === 'error' ? 'var(--danger)' : t.type === 'success' ? 'var(--success)' : 'var(--accent)'
             return <div style={{
               background: 'color-mix(in srgb, var(--bg-elevated) 90%, transparent)', border: '1px solid var(--border)',
               'border-radius': 'var(--radius-xl)', padding: '14px 20px',
@@ -262,10 +262,9 @@ const App: Component = () => {
               'box-shadow': 'var(--shadow-lg)', 'max-width': '360px',
               'backdrop-filter': 'blur(12px)', '-webkit-backdrop-filter': 'blur(12px)',
               animation: 'toast-in 250ms cubic-bezier(0.16, 1, 0.3, 1) both',
-              'border-left': `3px solid ${borderColor}`,
               display: 'flex', 'align-items': 'center', gap: '10px',
             }}>
-              <span style={{ color: borderColor, 'font-size': '18px', 'flex-shrink': 0 }}>
+              <span style={{ color: markColor, 'font-size': '18px', 'flex-shrink': 0 }}>
                 {t.type === 'error' ? '✕' : t.type === 'success' ? '✓' : 'i'}
               </span>
               <span>{t.message}</span>

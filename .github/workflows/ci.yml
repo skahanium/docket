@@ -43,3 +43,9 @@ jobs:
 
       - name: Bindings match committed generated.ts
         run: npm run check:bindings
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E flows
+        run: npx playwright test

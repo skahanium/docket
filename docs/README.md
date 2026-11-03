@@ -7,7 +7,8 @@ UI 改动另受 **[design.md](design.md)**（版式与禁则）与根目录 **[A
 
 ## `plans/` 目录（当前有效）
 
-- [`2026-11-03-foundation-batch.md`](plans/2026-11-03-foundation-batch.md) — 基础建设批：AGENTS.md、design.md、CI 四道门
+- [`2026-11-03-e2e-toast.md`](plans/2026-11-03-e2e-toast.md) — toast 禁则修正 + Playwright E2E 首批（fixture 注入，不引 tauri-driver）
+- [`2026-11-03-foundation-batch.md`](plans/2026-11-03-foundation-batch.md) — 基础建设批：AGENTS.md、design.md、CI 门
 - [`2026-11-03-ui-settings-polish.md`](plans/2026-11-03-ui-settings-polish.md) — UI 收整：设置 9→6、卡片语法、选中态去蓝条、模板步骤卡修复、混合保存
 - [`2026-11-02-lifecycle-fixes.md`](plans/2026-11-02-lifecycle-fixes.md) — 生命周期修复：复发保留时刻、完成史看 `completed_at`（归档不抹历史）、恢复回离开时的状态、撤销入口统一；含步骤改名与一键备份
 - [`2026-11-02-app-shell.md`](plans/2026-11-02-app-shell.md) — **壳层现行**：五视图（今日含逾期、任务看归档、事项、日历含排程、进展=统计+指标）、分类/标签独立页、设置浮层

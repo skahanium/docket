@@ -38,7 +38,7 @@
 
 - 修 bug 必带回归测试；新行为必带正向测试
 - 时区 / 日历语义必须显式测：本地日历日、半开区间、RFC3339 → 本地日换算（本项目踩过坑）
-- 集成测试守住 IPC 面（`src-tauri/tests/commands_integration.rs`）；前端测纯逻辑（stores / utils）
+- 集成测试守住 IPC 面（`src-tauri/tests/commands_integration.rs`）；前端测纯逻辑（stores / utils）；UI 流走 `e2e/`（Playwright 打纯浏览器 + fixture 注入，不引 tauri-driver）
 - 测试命名写行为（如 `archived_completed_task_still_in_daily_counts`），不写 `test1`
 
 ## 验证门（宣称完成前必须全绿）
@@ -48,9 +48,10 @@ cd src-tauri && cargo test
 npm test
 npx tsc -b
 npm run check:bindings   # 对照 HEAD；波内 generated.ts 有改动属正常，提交后转绿
+npx playwright test      # UI 流回归（e2e/，fixture 注入 invoke）
 ```
 
-CI（`.github/workflows/ci.yml`）同跑这四道门；红灯不许合。
+CI（`.github/workflows/ci.yml`）同跑这五道门；红灯不许合。
 
 ## 代码约定（浓缩）
 

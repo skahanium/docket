@@ -44,7 +44,7 @@
 
 | 债 | 出处 | 归属 |
 |----|------|------|
-| toast 彩色左条与旧选中蓝条同语言 | 用户发现，`App.tsx` `border-left` | 下一波，design.md 禁则实例 |
+| ~~toast 彩色左条与旧选中蓝条同语言~~ 已修（e2e 回归锁定） | 用户发现，`App.tsx` `border-left` | [2026-11-03-e2e-toast.md](2026-11-03-e2e-toast.md) |
 
 ## 非目标
 

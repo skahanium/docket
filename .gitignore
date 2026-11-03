@@ -19,6 +19,10 @@ dist-ssr
 src-tauri/target/
 *.db
 
+# Playwright
+test-results/
+playwright-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

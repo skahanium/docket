@@ -7,7 +7,10 @@
 
 ### Added
 - `AGENTS.md` / `docs/design.md`：AI 协作宪法与 UI 版式约束
-- CI 四道验证门（`.github/workflows/ci.yml`）
+- CI 五道验证门（`.github/workflows/ci.yml`），含 Playwright E2E 首批（壳层选中态、分类独立页、toast 禁则、模板步骤回归）
+
+### Fixed
+- toast 彩色左条（违反强调色禁则）：改为图标 + 文案语义
 
 ## [0.1.0] — 波次回填
 
