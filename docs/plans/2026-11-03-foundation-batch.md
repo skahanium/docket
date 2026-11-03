@@ -10,7 +10,7 @@
 - [x] `CHANGELOG.md` — Keep a Changelog 式存根，回填 0.1.0 各波
 - [x] `.github/workflows/ci.yml` — 四道门机械固化
 - [x] 文档同步：`docs/README.md` 索引收录 design.md；README 补 CI 徽章
-- [ ] 首跑观察：推送后 CI 绿；红则修到绿
+- [x] 首跑观察：首跑红（漏 Tauri 系统依赖）→ 补 apt 步骤后转绿（`gates in 3m25s`）
 
 ## CI 设计
 
