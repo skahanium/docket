@@ -32,6 +32,10 @@ export function getDatabasePath(): Promise<string> {
   return invoke<string>('get_database_path')
 }
 
+export function backupDatabase(): Promise<string | null> {
+  return invoke<string | null>('backup_database')
+}
+
 export function revealDatabaseFolder(): Promise<void> {
   return invoke<void>('reveal_database_folder')
 }

@@ -120,6 +120,22 @@ const MatterDetail: Component = () => {
     }
   }
 
+  // 完成 / 跳过的逆都是回 pending（与议程撤销同命令）
+  const stepAct = async (stepId: number, fn: () => Promise<void>, ok: string) => {
+    try {
+      await fn()
+      pushToast('success', ok, {
+        label: '撤销',
+        onClick: () => {
+          void act(() => reopenMatterStep(stepId), '已重开')
+        },
+      })
+      invalidateAfterMutation()
+    } catch (e) {
+      pushToast('error', String(e))
+    }
+  }
+
   const addStep = async () => {
     const d = detail()
     const t = stepTitle().trim()
@@ -275,7 +291,16 @@ const MatterDetail: Component = () => {
                     >
                       <span class={page.stepMark}>{step.status === 'completed' ? '✓' : step.status === 'skipped' ? '–' : current ? '→' : '·'}</span>
                       <div class={page.stepBody}>
-                        <div class={page.stepTitle}>{step.title}</div>
+                        <input
+                          class={page.stepTitle}
+                          style={{ border: 'none', background: 'transparent', width: '100%', padding: 0, font: 'inherit', color: 'inherit' }}
+                          value={step.title}
+                          onChange={(e) => {
+                            const t = e.currentTarget.value.trim()
+                            if (!t || t === step.title) return
+                            void act(() => updateMatterStep(step.id, { title: t }), '已重命名步骤')
+                          }}
+                        />
                         <div class={page.cardMeta}>
                           {STEP_LABEL[step.status]}
                           {step.evidence_required ? ' · 建议有依据' : ''}
@@ -314,8 +339,8 @@ const MatterDetail: Component = () => {
                         </For>
                         <div class={`${page.row} ${page.stepActions}`}>
                           <Show when={step.status === 'pending'}>
-                            <button class={page.btn} onClick={() => void act(() => completeMatterStep(step.id), '已完成此步')}>完成</button>
-                            <button class={page.btn} onClick={() => void act(() => skipMatterStep(step.id), '已跳过')}>跳过</button>
+                            <button class={page.btn} onClick={() => void stepAct(step.id, () => completeMatterStep(step.id), '已完成此步')}>完成</button>
+                            <button class={page.btn} onClick={() => void stepAct(step.id, () => skipMatterStep(step.id), '已跳过')}>跳过</button>
                           </Show>
                           <Show when={step.status !== 'pending'}>
                             <button class={page.btn} onClick={() => void act(() => reopenMatterStep(step.id), '已重开')}>回头</button>

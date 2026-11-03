@@ -6,6 +6,7 @@
 
 ## `plans/` 目录（当前有效）
 
+- [`2026-11-02-lifecycle-fixes.md`](plans/2026-11-02-lifecycle-fixes.md) — 生命周期修复：复发保留时刻、完成史看 `completed_at`（归档不抹历史）、恢复回离开时的状态、撤销入口统一；含步骤改名与一键备份
 - [`2026-11-02-app-shell.md`](plans/2026-11-02-app-shell.md) — **壳层现行**：五视图（今日含逾期、任务看归档、事项、日历含排程、进展=统计+指标）、分类/标签独立页、设置浮层
 - [`2026-10-29-matters-playbooks-cadences.md`](plans/2026-10-29-matters-playbooks-cadences.md) — 事项、流程模板、步骤依据、周期指标；今日一事一步；与任务分表（指标在进展页、模板编辑在设置）
 - [`2026-05-19-desktop-presence-design.md`](plans/2026-05-19-desktop-presence-design.md) — 单例、托盘常驻、悬浮任务面板、通知、低负载与安全（S2 可选联网）

@@ -381,7 +381,7 @@ mod tests {
         let again = collect_due_matter_steps(&conn, now).unwrap();
         assert!(!again.iter().any(|s| s.step_id == due_step));
 
-        update_matter_step_on_conn(&conn, due_step, Some(Some("2020-01-02"))).unwrap();
+        update_matter_step_on_conn(&conn, due_step, None, Some(Some("2020-01-02"))).unwrap();
         let after_change = collect_due_matter_steps(&conn, now).unwrap();
         assert!(after_change.iter().any(|s| s.step_id == due_step));
         let _ = current_pending_step(&conn, mid);

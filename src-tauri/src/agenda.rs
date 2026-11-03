@@ -521,7 +521,7 @@ mod tests {
 
         update_matter_on_conn(&conn, mid, None, None, None, Some(None), None).unwrap();
         let step = current_pending_step(&conn, mid).unwrap().unwrap();
-        update_matter_step_on_conn(&conn, step.id, Some(Some(yesterday.as_str()))).unwrap();
+        update_matter_step_on_conn(&conn, step.id, None, Some(Some(yesterday.as_str()))).unwrap();
         let by_step = list_agenda_on_conn(&conn, "overdue").unwrap();
         assert!(by_step.iter().any(|i| i.kind == AGENDA_KIND_MATTER_STEP && i.matter_id == Some(mid)));
 

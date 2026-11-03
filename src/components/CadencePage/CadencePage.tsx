@@ -203,7 +203,12 @@ const CadenceCard: Component<{
           </Show>
           <For each={data()!.matching_matters}>
             {(m) => (
-              <button class={styles.btn} onClick={() => selectMatter(m.id)}>{m.title}</button>
+              <button class={styles.btn} onClick={() => selectMatter(m.id)}>
+                {m.title}
+                <Show when={m.status === 'archived'}>
+                  <span style={{ color: 'var(--text-label)', 'font-size': '12px' }}>已归档</span>
+                </Show>
+              </button>
             )}
           </For>
         </div>

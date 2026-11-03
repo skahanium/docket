@@ -346,6 +346,39 @@ fn recurrence_end_count_one_does_not_spawn() {
 }
 
 #[test]
+fn recurrence_spawn_keeps_local_time() {
+    let db = in_memory_db();
+    let conn = lock_conn(&db).expect("lock");
+    let root = create_task_on_conn(
+        &conn,
+        CreateTaskInput {
+            title: "Timed repeat".into(),
+            description: None,
+            priority: None,
+            due_date: Some("2026-06-15T15:00".into()),
+            category_id: None,
+            recurrence_rule: Some(daily_rule(2)),
+            estimated_minutes: None,
+        },
+    )
+    .expect("create");
+
+    complete_task_on_conn(&conn, root).expect("complete root");
+    let child = series_ids(&conn, root)
+        .into_iter()
+        .find(|id| *id != root)
+        .expect("spawned child");
+    let child_due: String = conn
+        .query_row(
+            "SELECT due_date FROM tasks WHERE id=?1",
+            [child],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(child_due, "2026-06-16T15:00");
+}
+
+#[test]
 fn recurrence_instance_inherits_tags_and_pending_subtasks() {
     let db = in_memory_db();
     let conn = lock_conn(&db).expect("lock");

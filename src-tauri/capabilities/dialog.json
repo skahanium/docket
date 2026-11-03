@@ -1,11 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "dialog",
-  "description": "allows picking a local file or folder as matter-step evidence",
+  "description": "allows picking a local file or folder as matter-step evidence, and saving a timestamped database backup",
   "windows": [
     "main"
   ],
   "permissions": [
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "dialog:allow-save"
   ]
 }

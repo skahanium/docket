@@ -87,7 +87,7 @@ pub fn weekly_accuracy_on_conn(
     {
         let mut stmt = conn.prepare(
             "SELECT substr(due_date,1,10), COALESCE(SUM(estimated_minutes), 0)
-             FROM tasks WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) < ?2 AND status='completed'
+             FROM tasks WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) < ?2 AND completed_at IS NOT NULL
              GROUP BY substr(due_date,1,10)",
         ).map_err(|e| e.to_string())?;
         for row in stmt.query_map([&week_ago, &tomorrow], |r| {
@@ -117,7 +117,7 @@ pub fn weekly_accuracy_on_conn(
     let mut completed_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT substr(due_date,1,10), COUNT(*) FROM tasks WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) < ?2 AND status='completed' GROUP BY substr(due_date,1,10)",
+            "SELECT substr(due_date,1,10), COUNT(*) FROM tasks WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) < ?2 AND completed_at IS NOT NULL GROUP BY substr(due_date,1,10)",
         ).map_err(|e| e.to_string())?;
         for row in stmt.query_map([&week_ago, &tomorrow], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
@@ -130,7 +130,7 @@ pub fn weekly_accuracy_on_conn(
     let mut total_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT substr(due_date,1,10), COUNT(*) FROM tasks WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) < ?2 AND status!='archived' GROUP BY substr(due_date,1,10)",
+            "SELECT substr(due_date,1,10), COUNT(*) FROM tasks WHERE substr(due_date,1,10) >= ?1 AND substr(due_date,1,10) < ?2 GROUP BY substr(due_date,1,10)",
         ).map_err(|e| e.to_string())?;
         for row in stmt.query_map([&week_ago, &tomorrow], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
@@ -253,13 +253,13 @@ pub fn get_workload_summary(state: State<DbState>, date: Option<String>) -> Resu
     } else { 0 };
 
     let task_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM tasks WHERE substr(due_date,1,10)=?1 AND status='active'",
+        "SELECT COUNT(*) FROM tasks WHERE substr(due_date,1,10)=?1",
         [&date],
         |r| r.get(0),
     ).map_err(|e| e.to_string())?;
 
     let completed_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM tasks WHERE substr(due_date,1,10)=?1 AND status='completed'",
+        "SELECT COUNT(*) FROM tasks WHERE substr(due_date,1,10)=?1 AND completed_at IS NOT NULL",
         [&date],
         |r| r.get(0),
     ).map_err(|e| e.to_string())?;
@@ -315,7 +315,7 @@ pub fn get_daily_review_on_conn(
                 COALESCE((SELECT SUM(fs.duration_minutes) FROM focus_sessions fs WHERE fs.task_id=t.id AND fs.completed=1), 0),
                 t.priority
          FROM tasks t
-         WHERE substr(t.due_date,1,10)=?1 AND t.status='completed'
+         WHERE substr(t.due_date,1,10)=?1 AND t.completed_at IS NOT NULL
          ORDER BY t.completed_at"
     ).map_err(|e| e.to_string())?;
 
@@ -432,6 +432,43 @@ mod tests {
             assert_eq!(oct.completed_steps, 0);
             assert_eq!(oct.completed_matters, 0);
         }
+    }
+
+    #[test]
+    fn archived_completed_task_still_in_daily_review_and_accuracy() {
+        use crate::commands::tasks::{
+            archive_task_on_conn, complete_task_on_conn, create_task_on_conn, CreateTaskInput,
+        };
+        let conn = Connection::open_in_memory().unwrap();
+        db::init_db(&conn).unwrap();
+        let today = crate::time::local_today_date();
+        let id = create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "办完归档的任务".into(),
+                description: None,
+                priority: None,
+                due_date: Some(today.clone()),
+                category_id: None,
+                recurrence_rule: None,
+                estimated_minutes: Some(30),
+            },
+        )
+        .unwrap();
+        complete_task_on_conn(&conn, id).unwrap();
+        archive_task_on_conn(&conn, id).unwrap();
+
+        let review = get_daily_review_on_conn(&conn, Some(today.clone())).unwrap();
+        assert!(
+            review.completed_tasks.iter().any(|t| t.id == id),
+            "归档不抹历史：复盘已完成列表应含归档任务"
+        );
+
+        let weekly = weekly_accuracy_on_conn(&conn).unwrap();
+        let completed: i64 = weekly.days.iter().map(|d| d.completed_tasks).sum();
+        let total: i64 = weekly.days.iter().map(|d| d.total_tasks).sum();
+        assert_eq!(completed, 1, "预估 vs 实际的完成数含归档任务");
+        assert!(total >= completed);
     }
 }
 

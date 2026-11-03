@@ -9,6 +9,20 @@ fn format_date(d: NaiveDate) -> String {
     d.format("%Y-%m-%d").to_string()
 }
 
+/// Date part of a due value (`YYYY-MM-DD` or `YYYY-MM-DDTHH:MM`); `None` when invalid.
+fn due_date_part(s: &str) -> Option<NaiveDate> {
+    s.get(..10).and_then(parse_date)
+}
+
+/// `T15:00` tail when the due value carries a local time; empty for date-only.
+fn due_time_suffix(s: &str) -> &str {
+    if s.len() == 16 && s.as_bytes()[10] == b'T' {
+        &s[10..]
+    } else {
+        ""
+    }
+}
+
 fn get_weekday_num(w: Weekday) -> i32 {
     match w {
         Weekday::Mon => 1,
@@ -27,18 +41,19 @@ pub fn parse_rule(json: &str) -> Option<RecurrenceRule> {
 
 pub fn next_occurrence(rule: &RecurrenceRule, current_date: &str) -> Option<String> {
     let today = crate::time::local_today_naive();
-    let current = parse_date(current_date).unwrap_or(today);
+    let current = due_date_part(current_date).unwrap_or(today);
+    let time_suffix = due_time_suffix(current_date);
 
     if let Some(next) = next_occurrence_from(rule, current) {
         // Check end conditions
         if let Some(ref end_date_str) = rule.end_date {
-            if let Some(end_date) = parse_date(end_date_str) {
+            if let Some(end_date) = due_date_part(end_date_str) {
                 if next > end_date {
                     return None;
                 }
             }
         }
-        Some(format_date(next))
+        Some(format_date(next) + time_suffix)
     } else {
         None
     }
@@ -193,5 +208,51 @@ mod tests {
         let json = r#"{"freq":"daily","interval":1,"end_type":"never"}"#;
         let rule = parse_rule(json).unwrap();
         assert_eq!(rule.freq, "daily");
+    }
+
+    #[test]
+    fn next_occurrence_keeps_local_time() {
+        let rule = RecurrenceRule {
+            freq: "daily".into(),
+            interval: 1,
+            days: None,
+            end_type: "never".into(),
+            end_date: None,
+            end_count: None,
+        };
+        // 换日跑也要过：基准来自 due 本身，不回退今天
+        let next = next_occurrence(&rule, "2026-11-15T15:00").unwrap();
+        assert_eq!(next, "2026-11-16T15:00");
+    }
+
+    #[test]
+    fn next_occurrence_date_only_stays_date_only() {
+        let rule = RecurrenceRule {
+            freq: "daily".into(),
+            interval: 1,
+            days: None,
+            end_type: "never".into(),
+            end_date: None,
+            end_count: None,
+        };
+        let next = next_occurrence(&rule, "2026-05-11").unwrap();
+        assert_eq!(next, "2026-05-12");
+        assert_eq!(next.len(), 10);
+    }
+
+    #[test]
+    fn next_occurrence_end_date_compares_date_part() {
+        let rule = RecurrenceRule {
+            freq: "daily".into(),
+            interval: 1,
+            days: None,
+            end_type: "date".into(),
+            end_date: Some("2026-05-12".into()),
+            end_count: None,
+        };
+        // 候选带时刻、end 为纯日期：按日期部分比较，含端点
+        let next = next_occurrence(&rule, "2026-05-11T15:00").unwrap();
+        assert_eq!(next, "2026-05-12T15:00");
+        assert!(next_occurrence(&rule, "2026-05-12T15:00").is_none());
     }
 }

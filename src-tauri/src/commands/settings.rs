@@ -62,6 +62,33 @@ pub fn reveal_database_folder(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// 一键带时间戳备份：VACUUM INTO 出一致单文件快照（含 WAL 内容）。用户取消返回 None。
+#[tauri::command]
+pub fn backup_database(app: AppHandle, state: State<DbState>) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let stamp = chrono::Local::now().format("%Y%m%d-%H%M").to_string();
+    let default_name = format!("docket-{stamp}.db");
+    let picked = app
+        .dialog()
+        .file()
+        .set_file_name(&default_name)
+        .blocking_save_file();
+    let Some(p) = picked else {
+        return Ok(None);
+    };
+    let dest = p.into_path().map_err(|e| e.to_string())?;
+    if dest.exists() {
+        std::fs::remove_file(&dest).map_err(|e| e.to_string())?;
+    }
+    let conn = lock_conn(&state)?;
+    conn.execute(
+        "VACUUM INTO ?1",
+        rusqlite::params![dest.display().to_string()],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(Some(dest.display().to_string()))
+}
+
 #[tauri::command]
 pub fn list_holidays(state: State<DbState>) -> Result<Vec<HolidayEntry>, String> {
     let conn = lock_conn(&state)?;

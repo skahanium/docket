@@ -7,6 +7,7 @@ import {
   listHolidays,
   fetchHolidaysOnline,
   getDatabasePath,
+  backupDatabase,
   revealDatabaseFolder,
   getNotificationSettings,
   updateNotificationSettings,
@@ -117,6 +118,15 @@ const SettingsPanel: Component<Props> = (props) => {
       await revealDatabaseFolder()
     } catch {
       pushToast('error', '无法打开文件夹')
+    }
+  }
+
+  const backup = async () => {
+    try {
+      const saved = await backupDatabase()
+      if (saved) pushToast('success', '已备份到 ' + saved)
+    } catch (e) {
+      pushToast('error', `备份失败: ${e}`)
     }
   }
 
@@ -327,6 +337,7 @@ const SettingsPanel: Component<Props> = (props) => {
             <code class={styles.path}>{dbPath() ?? '…'}</code>
             <button class={styles.btn} onClick={() => void copyPath()} disabled={!dbPath()}>复制路径</button>
             <button class={styles.btn} onClick={() => void openFolder()}>打开所在文件夹</button>
+            <button class={styles.btn} onClick={() => void backup()}>备份到…</button>
           </div>
         </section>
       </Show>

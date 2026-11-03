@@ -9,7 +9,7 @@ import {
   categories,
   tags,
   updateTask,
-  completeTask,
+  completeTaskFromList,
   deleteTask,
   archiveTask,
   restoreTask,
@@ -363,7 +363,7 @@ const TaskDetail: Component = () => {
 
           <div class={styles.footer}>
             <Show when={detail()!.status === 'active'}>
-              <Button variant="success" onClick={() => act(() => completeTask(detail()!.id), '已完成')}>完成</Button>
+              <Button variant="success" onClick={() => void completeTaskFromList(detail()!.id)}>完成</Button>
             </Show>
             <Show when={detail()!.status !== 'archived'}>
               <Button variant="secondary" onClick={() => setConfirmAction({ title: '归档任务', message: '确认归档此任务？归档后可恢复。', fn: () => { act(() => archiveTask(detail()!.id), '已归档'); deselectTask() }, danger: false })}>归档</Button>

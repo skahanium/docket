@@ -548,14 +548,44 @@ pub fn list_tasks(
     list_tasks_on_conn(&conn, filters, sort).map_err(Into::into)
 }
 
+pub fn archive_task_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
+    let now = Utc::now().to_rfc3339();
+    let n = conn.execute(
+        &format!("UPDATE tasks SET status='{}', archived_at=?1, updated_at=?2 WHERE id=?3", task_status::ARCHIVED),
+        rusqlite::params![now, now, id],
+    )?;
+    if n == 0 {
+        return Err(AppError::TaskNotFound { id });
+    }
+    Ok(())
+}
+
+/// 恢复是"回到离开时的状态"：完成过的仍算完成，不强制回 active。
+pub fn restore_task_on_conn(conn: &Connection, id: i64) -> AppResult<()> {
+    let now = Utc::now().to_rfc3339();
+    let completed_at: Option<String> = conn
+        .query_row(
+            "SELECT completed_at FROM tasks WHERE id=?1",
+            rusqlite::params![id],
+            |r| r.get(0),
+        )
+        .map_err(|_| AppError::TaskNotFound { id })?;
+    let status = if completed_at.is_some() {
+        task_status::COMPLETED
+    } else {
+        task_status::ACTIVE
+    };
+    conn.execute(
+        &format!("UPDATE tasks SET status='{}', archived_at=NULL, updated_at=?1 WHERE id=?2", status),
+        rusqlite::params![now, id],
+    )?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn archive_task(app: AppHandle, state: State<DbState>, id: i64) -> Result<(), String> {
     let conn = lock_conn(&state)?;
-    let now = Utc::now().to_rfc3339();
-    conn.execute(
-        &format!("UPDATE tasks SET status='{}', archived_at=?1, updated_at=?2 WHERE id=?3", task_status::ARCHIVED),
-        rusqlite::params![now, now, id],
-    ).map_err(|e| e.to_string())?;
+    archive_task_on_conn(&conn, id)?;
     crate::app_windows::emit_tasks_changed(&app);
     Ok(())
 }
@@ -563,11 +593,7 @@ pub fn archive_task(app: AppHandle, state: State<DbState>, id: i64) -> Result<()
 #[tauri::command]
 pub fn restore_task(app: AppHandle, state: State<DbState>, id: i64) -> Result<(), String> {
     let conn = lock_conn(&state)?;
-    let now = Utc::now().to_rfc3339();
-    conn.execute(
-        &format!("UPDATE tasks SET status='{}', archived_at=NULL, updated_at=?1 WHERE id=?2", task_status::ACTIVE),
-        rusqlite::params![now, id],
-    ).map_err(|e| e.to_string())?;
+    restore_task_on_conn(&conn, id)?;
     crate::app_windows::emit_tasks_changed(&app);
     Ok(())
 }
@@ -737,5 +763,52 @@ mod list_tests {
         let again = get_task_on_conn(&conn, id).unwrap();
         assert_eq!(again.status, task_status::ACTIVE);
         assert!(again.completed_at.is_none());
+    }
+
+    #[test]
+    fn restore_task_preserves_completed_state() {
+        let conn = setup_conn();
+        let id = create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "完成归档再恢复".into(),
+                description: None,
+                priority: None,
+                due_date: None,
+                category_id: None,
+                recurrence_rule: None,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap();
+        complete_task_on_conn(&conn, id).unwrap();
+        archive_task_on_conn(&conn, id).unwrap();
+        restore_task_on_conn(&conn, id).unwrap();
+        let restored = get_task_on_conn(&conn, id).unwrap();
+        assert_eq!(restored.status, task_status::COMPLETED, "恢复是回到离开时的状态");
+        assert!(restored.completed_at.is_some());
+    }
+
+    #[test]
+    fn restore_task_active_returns_active() {
+        let conn = setup_conn();
+        let id = create_task_on_conn(
+            &conn,
+            CreateTaskInput {
+                title: "未完成归档再恢复".into(),
+                description: None,
+                priority: None,
+                due_date: None,
+                category_id: None,
+                recurrence_rule: None,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap();
+        archive_task_on_conn(&conn, id).unwrap();
+        restore_task_on_conn(&conn, id).unwrap();
+        let restored = get_task_on_conn(&conn, id).unwrap();
+        assert_eq!(restored.status, task_status::ACTIVE);
+        assert!(restored.completed_at.is_none());
     }
 }

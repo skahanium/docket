@@ -423,6 +423,7 @@ export type UpdateMatterInput = {
 };
 
 export type UpdateMatterStepInput = {
+	title: string | null,
 	due_date: string | null,
 	clear_due_date: boolean | null,
 };

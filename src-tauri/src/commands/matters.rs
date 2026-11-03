@@ -57,6 +57,7 @@ pub struct AddMatterStepInput {
 
 #[derive(Debug, serde::Deserialize, Type)]
 pub struct UpdateMatterStepInput {
+    pub title: Option<String>,
     pub due_date: Option<String>,
     pub clear_due_date: Option<bool>,
 }
@@ -211,7 +212,7 @@ pub fn update_matter_step(
     } else {
         input.due_date.as_deref().map(Some)
     };
-    update_matter_step_on_conn(&conn, step_id, due)?;
+    update_matter_step_on_conn(&conn, step_id, input.title.as_deref(), due)?;
     crate::app_windows::emit_tasks_changed(&app);
     Ok(())
 }

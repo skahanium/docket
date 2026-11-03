@@ -38,7 +38,7 @@ pub fn statistics_on_conn(conn: &Connection) -> Result<Statistics, String> {
 
     let completed_week: i32 = conn
         .query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status='completed' AND completed_at >= ?1 AND completed_at < ?2",
+            "SELECT COUNT(*) FROM tasks WHERE completed_at IS NOT NULL AND completed_at >= ?1 AND completed_at < ?2",
             rusqlite::params![range_start, range_end],
             |row| row.get(0),
         )
@@ -62,7 +62,7 @@ pub fn statistics_on_conn(conn: &Connection) -> Result<Statistics, String> {
     {
         let mut stmt = conn.prepare(
             "SELECT completed_at FROM tasks
-             WHERE status='completed' AND completed_at >= ?1 AND completed_at < ?2",
+             WHERE completed_at IS NOT NULL AND completed_at >= ?1 AND completed_at < ?2",
         ).map_err(|e| e.to_string())?;
         for row in stmt.query_map(rusqlite::params![range_start, range_end], |r| {
             r.get::<_, String>(0)
@@ -106,4 +106,71 @@ pub fn get_stats_panel(
         weekly_accuracy: weekly_accuracy_on_conn(&conn)?,
         focus_heatmap: focus_heatmap_on_conn(&conn, days)?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::tasks::{
+        archive_task_on_conn, complete_task_on_conn, create_task_on_conn, CreateTaskInput,
+    };
+    use crate::db;
+    use rusqlite::Connection;
+
+    fn conn() -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        db::init_db(&c).unwrap();
+        c
+    }
+
+    fn create(conn: &Connection, title: &str, due: Option<String>, rule: Option<String>) -> i64 {
+        create_task_on_conn(
+            conn,
+            CreateTaskInput {
+                title: title.into(),
+                description: None,
+                priority: None,
+                due_date: due,
+                category_id: None,
+                recurrence_rule: rule,
+                estimated_minutes: None,
+            },
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn archived_completed_task_still_in_daily_counts() {
+        let conn = conn();
+        let today = crate::time::local_today_date();
+        let id = create(&conn, "办完归档", Some(today.clone()), None);
+        complete_task_on_conn(&conn, id).unwrap();
+        archive_task_on_conn(&conn, id).unwrap();
+
+        let stats = statistics_on_conn(&conn).unwrap();
+        let week_completed: i32 = stats.daily_counts.iter().map(|d| d.completed).sum();
+        assert_eq!(week_completed, 1, "归档不抹历史：已完成任务归档后仍计入完成趋势");
+        assert!(stats.weekly_completion_rate > 0.0);
+    }
+
+    #[test]
+    fn recurrence_instances_each_counted_once() {
+        let conn = conn();
+        let today = crate::time::local_today_date();
+        let rule = r#"{"freq":"daily","interval":1,"end_type":"count","end_count":2}"#.to_string();
+        let root = create(&conn, "重复计数", Some(today), Some(rule));
+        complete_task_on_conn(&conn, root).unwrap();
+        let child: i64 = conn
+            .query_row(
+                "SELECT id FROM tasks WHERE recurrence_parent_id=?1",
+                [root],
+                |r| r.get(0),
+            )
+            .unwrap();
+        complete_task_on_conn(&conn, child).unwrap();
+
+        let stats = statistics_on_conn(&conn).unwrap();
+        let week_completed: i32 = stats.daily_counts.iter().map(|d| d.completed).sum();
+        assert_eq!(week_completed, 2, "复发链每个实例各计一次完成");
+    }
 }

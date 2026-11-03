@@ -53,6 +53,7 @@ export const listHolidays = api.listHolidays
 export const updateHolidays = api.updateHolidays
 export const fetchHolidaysOnline = api.fetchHolidaysOnline
 export const getDatabasePath = api.getDatabasePath
+export const backupDatabase = api.backupDatabase
 export const revealDatabaseFolder = api.revealDatabaseFolder
 
 export const getDesktopPanelSnapshot = api.getDesktopPanelSnapshot

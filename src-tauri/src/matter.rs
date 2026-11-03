@@ -198,6 +198,7 @@ pub fn add_matter_step_on_conn(
 pub fn update_matter_step_on_conn(
     conn: &Connection,
     step_id: i64,
+    title: Option<&str>,
     due_date: Option<Option<&str>>,
 ) -> AppResult<()> {
     let n: i64 = conn.query_row(
@@ -207,6 +208,15 @@ pub fn update_matter_step_on_conn(
     )?;
     if n == 0 {
         return Err(AppError::message(format!("步骤不存在 (id={step_id})")));
+    }
+    if let Some(t) = title {
+        let t = t.trim();
+        if !t.is_empty() {
+            conn.execute(
+                "UPDATE matter_steps SET title=?1 WHERE id=?2",
+                params![t, step_id],
+            )?;
+        }
     }
     if let Some(due) = due_date {
         if let Some(d) = due {
@@ -419,60 +429,11 @@ fn row_to_summary(
     }
 }
 
-pub fn list_matters_on_conn(conn: &Connection, status: Option<&str>) -> AppResult<Vec<MatterSummary>> {
-    let sql = if let Some(_s) = status {
-        "SELECT id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at
-         FROM matters WHERE status=?1 ORDER BY updated_at DESC, id DESC"
-    } else {
-        "SELECT id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at
-         FROM matters WHERE status != ?1 ORDER BY updated_at DESC, id DESC"
-    };
-    let mut stmt = conn.prepare(sql)?;
-    let mut summaries = Vec::new();
-    if let Some(s) = status {
-        let rows = stmt.query_map(params![s], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, Option<i64>>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, i32>(4)?,
-                row.get::<_, Option<i64>>(5)?,
-                row.get::<_, Option<String>>(6)?,
-                row.get::<_, String>(7)?,
-                row.get::<_, Option<String>>(8)?,
-            ))
-        })?;
-        for row in rows {
-            let (id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at) =
-                row?;
-            summaries.push((
-                id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at,
-            ));
-        }
-    } else {
-        let rows = stmt.query_map(params![matter_status::ARCHIVED], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, Option<i64>>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, i32>(4)?,
-                row.get::<_, Option<i64>>(5)?,
-                row.get::<_, Option<String>>(6)?,
-                row.get::<_, String>(7)?,
-                row.get::<_, Option<String>>(8)?,
-            ))
-        })?;
-        for row in rows {
-            let (id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at) =
-                row?;
-            summaries.push((
-                id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at,
-            ));
-        }
-    }
+/// (id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at)
+type MatterRow = (i64, Option<i64>, String, String, i32, Option<i64>, Option<String>, String, Option<String>);
 
+/// Attach tags, current step, and missing-evidence to bare matter rows.
+fn summarize_rows(conn: &Connection, summaries: Vec<MatterRow>) -> AppResult<Vec<MatterSummary>> {
     let ids: Vec<i64> = summaries.iter().map(|s| s.0).collect();
     let tags_map = load_tags_map(conn, &ids)?;
 
@@ -543,21 +504,99 @@ pub fn list_matters_on_conn(conn: &Connection, status: Option<&str>) -> AppResul
         .collect())
 }
 
+pub fn list_matters_on_conn(conn: &Connection, status: Option<&str>) -> AppResult<Vec<MatterSummary>> {
+    let sql = if let Some(_s) = status {
+        "SELECT id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at
+         FROM matters WHERE status=?1 ORDER BY updated_at DESC, id DESC"
+    } else {
+        "SELECT id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at
+         FROM matters WHERE status != ?1 ORDER BY updated_at DESC, id DESC"
+    };
+    let mut stmt = conn.prepare(sql)?;
+    let mut summaries = Vec::new();
+    if let Some(s) = status {
+        let rows = stmt.query_map(params![s], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, Option<i64>>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, i32>(4)?,
+                row.get::<_, Option<i64>>(5)?,
+                row.get::<_, Option<String>>(6)?,
+                row.get::<_, String>(7)?,
+                row.get::<_, Option<String>>(8)?,
+            ))
+        })?;
+        for row in rows {
+            let (id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at) =
+                row?;
+            summaries.push((
+                id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at,
+            ));
+        }
+    } else {
+        let rows = stmt.query_map(params![matter_status::ARCHIVED], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, Option<i64>>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, i32>(4)?,
+                row.get::<_, Option<i64>>(5)?,
+                row.get::<_, Option<String>>(6)?,
+                row.get::<_, String>(7)?,
+                row.get::<_, Option<String>>(8)?,
+            ))
+        })?;
+        for row in rows {
+            let (id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at) =
+                row?;
+            summaries.push((
+                id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at,
+            ));
+        }
+    }
+
+    summarize_rows(conn, summaries)
+}
+
 pub fn list_completed_matters_in_range(
     conn: &Connection,
     start: NaiveDate,
     end_exclusive: NaiveDate,
 ) -> AppResult<Vec<MatterSummary>> {
-    let all = list_matters_on_conn(conn, Some(matter_status::COMPLETED))?;
-    Ok(all
-        .into_iter()
-        .filter(|m| {
-            m.completed_at
-                .as_deref()
-                .map(|ts| local_date_in_period(ts, start, end_exclusive))
-                .unwrap_or(false)
-        })
-        .collect())
+    // 完成史看 completed_at、含已归档：归档只影响可见性，不抹历史
+    let mut stmt = conn.prepare(
+        "SELECT id, playbook_id, title, status, priority, category_id, due_date, created_at, completed_at
+         FROM matters WHERE completed_at IS NOT NULL ORDER BY updated_at DESC, id DESC",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, Option<i64>>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, i32>(4)?,
+            row.get::<_, Option<i64>>(5)?,
+            row.get::<_, Option<String>>(6)?,
+            row.get::<_, String>(7)?,
+            row.get::<_, Option<String>>(8)?,
+        ))
+    })?;
+    let mut in_range: Vec<MatterRow> = Vec::new();
+    for row in rows {
+        let r: MatterRow = row?;
+        let hit = r
+            .8
+            .as_deref()
+            .map(|ts| local_date_in_period(ts, start, end_exclusive))
+            .unwrap_or(false);
+        if hit {
+            in_range.push(r);
+        }
+    }
+    summarize_rows(conn, in_range)
 }
 
 pub fn get_matter_on_conn(conn: &Connection, id: i64) -> AppResult<MatterDetail> {
@@ -856,5 +895,52 @@ mod tests {
         update_matter_on_conn(&conn, mid, None, None, None, None, Some(None)).unwrap();
         let cleared = get_matter_on_conn(&conn, mid).unwrap();
         assert!(cleared.notes.is_none() || cleared.notes.as_deref() == Some(""));
+    }
+
+    #[test]
+    fn archived_completed_matter_still_counts_in_range() {
+        let conn = conn();
+        let (_pb, mid) = seeded_matter(&conn);
+        for _ in 0..2 {
+            let step = current_pending_step(&conn, mid).unwrap().unwrap();
+            complete_matter_step_on_conn(&conn, step.id).unwrap();
+        }
+        let detail = get_matter_on_conn(&conn, mid).unwrap();
+        assert_eq!(detail.status, matter_status::COMPLETED);
+        assert!(detail.completed_at.is_some());
+        archive_matter_on_conn(&conn, mid).unwrap();
+
+        let today = crate::time::local_today_naive();
+        let start = today.pred_opt().unwrap();
+        let end = today.succ_opt().unwrap();
+        let listed = list_completed_matters_in_range(&conn, start, end).unwrap();
+        assert!(
+            listed.iter().any(|m| m.id == mid),
+            "归档不抹历史：办结事项归档后仍应计入期间"
+        );
+    }
+
+    #[test]
+    fn step_title_update_roundtrip_and_empty_ignored() {
+        let conn = conn();
+        let (_pb, mid) = seeded_matter(&conn);
+        let step = current_pending_step(&conn, mid).unwrap().unwrap();
+        update_matter_step_on_conn(&conn, step.id, Some("改名后的步"), None).unwrap();
+        let after = current_pending_step(&conn, mid).unwrap().unwrap();
+        assert_eq!(after.title, "改名后的步");
+        update_matter_step_on_conn(&conn, step.id, Some("   "), None).unwrap();
+        let kept = current_pending_step(&conn, mid).unwrap().unwrap();
+        assert_eq!(kept.title, "改名后的步", "空白标题不应覆盖");
+    }
+
+    #[test]
+    fn active_matter_without_completed_at_not_counted() {
+        let conn = conn();
+        let (_pb, mid) = seeded_matter(&conn);
+        let today = crate::time::local_today_naive();
+        let start = today.pred_opt().unwrap();
+        let end = today.succ_opt().unwrap();
+        let listed = list_completed_matters_in_range(&conn, start, end).unwrap();
+        assert!(!listed.iter().any(|m| m.id == mid));
     }
 }

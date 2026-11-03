@@ -226,6 +226,7 @@ pub fn run() {
             commands::analytics::get_daily_review,
             commands::settings::get_database_path,
             commands::settings::reveal_database_folder,
+            commands::settings::backup_database,
             commands::settings::list_holidays,
             commands::desktop_panel::get_desktop_panel_snapshot,
             commands::desktop_panel::get_panel_settings,
